@@ -1,0 +1,56 @@
+[workspace]
+members = [
+    "circom-types"
+]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.86"
+authors = ["TACEO <devs@taceo.io>"]
+repository = "https://github.com/TaceoLabs/circom-groth16-helpers"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+ark-algebra-test-templates = "0.5"
+ark-bls12-377 = "0.5"
+ark-bls12-381 = "0.5"
+ark-bn254 = "0.5"
+ark-curve-constraint-tests = "0.5"
+ark-ec = "0.5"
+ark-ff = "0.5"
+ark-groth16 = "0.5"
+ark-poly = "0.5"
+ark-r1cs-std = { version = "0.5" }
+ark-relations = "0.5"
+ark-serialize = "0.5"
+ark-std = "0.5"
+blake3 = "1"
+byteorder = "1.5"
+clap = { version = "4.4.8", features = ["derive"] }
+eyre = "0.6"
+num-bigint = "0.4"
+num-traits = "0.2"
+rand = "0.8"
+rayon = "1.8"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1"
+taceo-ark-babyjubjub = { version = "0.5", path = "ark-babyjubjub" }
+taceo-ark-serde-compat = { version = "0.1", path = "ark-serde-compat" }
+taceo-poseidon2 = { version = "0.1", path = "poseidon2" }
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+zeroize = "1"
+
+[profile.profiling]
+inherits = "bench"
+debug = true
+lto = "thin"
+
+# This profile can be used for CI in pull requests.
+[profile.ci-dev]
+inherits = "dev"
+opt-level = 1
+incremental = false
+debug = true
