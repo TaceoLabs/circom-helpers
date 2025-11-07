@@ -142,6 +142,12 @@ where
     deserializer.deserialize_seq(Bn254G1Visitor(CheckElement::Yes))
 }
 
+/// Deserialize a BN254 G1 point from an array of three coordinate strings without validation.
+///
+/// The G1 point is deserialized from projective coordinates `[x, y, z]` where each
+/// coordinate is a decimal string. **Does not** validate that the point is on the curve
+/// or in the correct subgroup, making it significantly faster but potentially unsafe.
+/// Use only with trusted input.
 pub fn deserialize_g1_unchecked<'de, D>(deserializer: D) -> Result<ark_bn254::G1Affine, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -161,6 +167,12 @@ where
     deserializer.deserialize_seq(Bn254G2Visitor(CheckElement::Yes))
 }
 
+/// Deserialize a BN254 G2 point from a 3x2 array of coordinate strings without validation.
+///
+/// The G2 point is deserialized from projective coordinates `[[x0, x1], [y0, y1], [z0, z1]]`
+/// where each coordinate pair represents an Fq2 element. **Does not** validate that the point
+/// is on the curve or in the correct subgroup, making it significantly faster but potentially
+/// unsafe. Use only with trusted input.
 pub fn deserialize_g2_unchecked<'de, D>(deserializer: D) -> Result<ark_bn254::G2Affine, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -189,6 +201,11 @@ where
     deserializer.deserialize_seq(Bn254G1SeqVisitor(CheckElement::Yes))
 }
 
+/// Deserialize a sequence of BN254 G1 points from an array of projective coordinate arrays without validation.
+///
+/// Each G1 point is deserialized from `[x, y, z]` format. **Does not** validate that the points
+/// are on the curve or in the correct subgroup, making it significantly faster but potentially
+/// unsafe. Use only with trusted input.
 pub fn deserialize_g1_seq_unchecked<'de, D>(
     deserializer: D,
 ) -> Result<Vec<ark_bn254::G1Affine>, D::Error>

@@ -120,7 +120,7 @@ impl<'de, F: PrimeField> de::Visitor<'de> for PrimeFieldVisitor<F> {
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str(&format!(
-            "a sting representing a field element in F_{}",
+            "a string representing a field element in F_{}",
             F::MODULUS
         ))
     }

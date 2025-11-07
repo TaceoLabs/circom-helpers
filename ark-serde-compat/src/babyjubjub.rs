@@ -93,6 +93,11 @@ where
     deserializer.deserialize_seq(BabyJubJubAffineVisitor(CheckElement::Yes))
 }
 
+/// Deserialize a BabyJubJub affine point from an array of two coordinate strings without validation.
+///
+/// The EdwardsAffine point is deserialized from `[x, y]` format. **Does not** validate that the
+/// point is on the curve or in the correct subgroup, making it significantly faster but potentially
+/// unsafe. Use only with trusted input.
 pub fn deserialize_affine_unchecked<'de, D>(
     deserializer: D,
 ) -> Result<taceo_ark_babyjubjub::EdwardsAffine, D::Error>
@@ -118,6 +123,11 @@ where
     })
 }
 
+/// Deserialize a sequence of BabyJubJub affine points from an array of coordinate pair arrays without validation.
+///
+/// Each EdwardsAffine point is deserialized from `[x, y]` format. **Does not** validate that the
+/// points are on the curve or in the correct subgroup, making it significantly faster but potentially
+/// unsafe. Use only with trusted input.
 pub fn deserialize_affine_seq_unchecked<'de, D>(
     deserializer: D,
 ) -> Result<Vec<taceo_ark_babyjubjub::EdwardsAffine>, D::Error>
