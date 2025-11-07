@@ -1,6 +1,5 @@
 //! This module contains traits for serializing and deserializing field elements and curve points into and from circom files to arkworks representation.
 use std::io::Read;
-use std::marker::PhantomData;
 
 use ark_ec::{AffineRepr, pairing::Pairing};
 use ark_ff::{PrimeField, Zero};
@@ -12,6 +11,7 @@ use std::str::FromStr;
 
 type SerResult<T> = Result<T, SerializationError>;
 
+#[cfg(any(feature = "bn254", feature = "bls12-381"))]
 macro_rules! impl_serde_for_curve {
     ($mod_name: ident, $config: ident, $curve: ident, $name: expr, $field_size: expr, $scalar_field_size: expr, $circom_name: expr) => {
 
@@ -256,12 +256,12 @@ mod $mod_name {
             where
                 D: de::Deserializer<'de>,
             {
-                deserializer.deserialize_seq(TargetGroupVisitor::<Self>::new())
+                deserializer.deserialize_seq(helpers::TargetGroupVisitor::<Self>::new())
             }
 
         }
 
-    impl<'de> de::Visitor<'de> for TargetGroupVisitor<$config> {
+    impl<'de> de::Visitor<'de> for helpers::TargetGroupVisitor<$config> {
         type Value = $curve::Fq12;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -328,187 +328,198 @@ mod $mod_name {
 }
     };
 }
-struct FrVisitor<P: Pairing + CircomArkworksPairingBridge>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    phantom_data: PhantomData<P>,
-}
 
-impl<P: Pairing + CircomArkworksPairingBridge> FrVisitor<P>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    fn new() -> Self {
-        Self {
-            phantom_data: PhantomData,
-        }
-    }
-}
+#[cfg(any(feature = "bn254", feature = "bls12-381"))]
+mod helpers {
 
-impl<P: Pairing + CircomArkworksPairingBridge> de::Visitor<'_> for FrVisitor<P>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    type Value = P::ScalarField;
+    use super::*;
+    use ark_ec::pairing::Pairing;
+    use serde::de;
+    use std::marker::PhantomData;
+    use std::str::FromStr;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("an element over a PrimeField as string with radix 10")
-    }
-    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    pub(super) struct FrVisitor<P: Pairing + CircomArkworksPairingBridge>
     where
-        E: de::Error,
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
     {
-        P::ScalarField::from_str(s).map_err(|_| de::Error::custom("invalid field element"))
-    }
-}
-struct G1Visitor<P: Pairing + CircomArkworksPairingBridge>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    check: CheckElement,
-    phantom_data: PhantomData<P>,
-}
-
-impl<P: Pairing + CircomArkworksPairingBridge> G1Visitor<P>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    fn new(check: CheckElement) -> Self {
-        Self {
-            check,
-            phantom_data: PhantomData,
-        }
-    }
-}
-
-impl<'de, P: Pairing + CircomArkworksPairingBridge> de::Visitor<'de> for G1Visitor<P>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    type Value = P::G1Affine;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a sequence of 3 strings, representing a projective point on G1")
+        phantom_data: PhantomData<P>,
     }
 
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    impl<P: Pairing + CircomArkworksPairingBridge> FrVisitor<P>
     where
-        A: de::SeqAccess<'de>,
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
     {
-        let x = seq.next_element::<String>()?.ok_or(de::Error::custom(
-            "expected G1 projective coordinates but x coordinate missing.".to_owned(),
-        ))?;
-        let y = seq.next_element::<String>()?.ok_or(de::Error::custom(
-            "expected G1 projective coordinates but y coordinate missing.".to_owned(),
-        ))?;
-        let z = seq.next_element::<String>()?.ok_or(de::Error::custom(
-            "expected G1 projective coordinates but z coordinate missing.".to_owned(),
-        ))?;
-        //check if there are no more elements
-        if seq.next_element::<String>()?.is_some() {
-            Err(de::Error::invalid_length(4, &self))
-        } else {
-            P::g1_from_strings_projective(&x, &y, &z, self.check)
-                .map_err(|_| de::Error::custom("Invalid projective point on G1.".to_owned()))
+        pub(super) fn new() -> Self {
+            Self {
+                phantom_data: PhantomData,
+            }
         }
     }
-}
 
-struct G2Visitor<P: Pairing + CircomArkworksPairingBridge>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    check: CheckElement,
-    phantom_data: PhantomData<P>,
-}
+    impl<P: Pairing + CircomArkworksPairingBridge> de::Visitor<'_> for FrVisitor<P>
+    where
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
+    {
+        type Value = P::ScalarField;
 
-impl<P: Pairing + CircomArkworksPairingBridge> G2Visitor<P>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    fn new(check: CheckElement) -> Self {
-        Self {
-            check,
-            phantom_data: PhantomData,
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("an element over a PrimeField as string with radix 10")
+        }
+        fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            P::ScalarField::from_str(s).map_err(|_| de::Error::custom("invalid field element"))
         }
     }
-}
+    pub(super) struct G1Visitor<P: Pairing + CircomArkworksPairingBridge>
+    where
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
+    {
+        check: CheckElement,
+        phantom_data: PhantomData<P>,
+    }
 
-impl<'de, P: Pairing + CircomArkworksPairingBridge> de::Visitor<'de> for G2Visitor<P>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    type Value = P::G2Affine;
+    impl<P: Pairing + CircomArkworksPairingBridge> G1Visitor<P>
+    where
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
+    {
+        pub(super) fn new(check: CheckElement) -> Self {
+            Self {
+                check,
+                phantom_data: PhantomData,
+            }
+        }
+    }
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter
+    impl<'de, P: Pairing + CircomArkworksPairingBridge> de::Visitor<'de> for G1Visitor<P>
+    where
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
+    {
+        type Value = P::G1Affine;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a sequence of 3 strings, representing a projective point on G1")
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: de::SeqAccess<'de>,
+        {
+            let x = seq.next_element::<String>()?.ok_or(de::Error::custom(
+                "expected G1 projective coordinates but x coordinate missing.".to_owned(),
+            ))?;
+            let y = seq.next_element::<String>()?.ok_or(de::Error::custom(
+                "expected G1 projective coordinates but y coordinate missing.".to_owned(),
+            ))?;
+            let z = seq.next_element::<String>()?.ok_or(de::Error::custom(
+                "expected G1 projective coordinates but z coordinate missing.".to_owned(),
+            ))?;
+            //check if there are no more elements
+            if seq.next_element::<String>()?.is_some() {
+                Err(de::Error::invalid_length(4, &self))
+            } else {
+                P::g1_from_strings_projective(&x, &y, &z, self.check)
+                    .map_err(|_| de::Error::custom("Invalid projective point on G1.".to_owned()))
+            }
+        }
+    }
+
+    pub(super) struct G2Visitor<P: Pairing + CircomArkworksPairingBridge>
+    where
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
+    {
+        check: CheckElement,
+        phantom_data: PhantomData<P>,
+    }
+
+    impl<P: Pairing + CircomArkworksPairingBridge> G2Visitor<P>
+    where
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
+    {
+        pub(super) fn new(check: CheckElement) -> Self {
+            Self {
+                check,
+                phantom_data: PhantomData,
+            }
+        }
+    }
+
+    impl<'de, P: Pairing + CircomArkworksPairingBridge> de::Visitor<'de> for G2Visitor<P>
+    where
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
+    {
+        type Value = P::G2Affine;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter
             .write_str("a sequence of 3 sequences, representing a projective point on G2. The 3 sequences each consist of two strings")
-    }
+        }
 
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: de::SeqAccess<'de>,
-    {
-        let x = seq.next_element::<Vec<String>>()?.ok_or(de::Error::custom(
-            "expected G1 projective coordinates but x coordinate missing.".to_owned(),
-        ))?;
-        let y = seq.next_element::<Vec<String>>()?.ok_or(de::Error::custom(
-            "expected G2 projective coordinates but y coordinate missing.".to_owned(),
-        ))?;
-        let z = seq.next_element::<Vec<String>>()?.ok_or(de::Error::custom(
-            "expected G2 projective coordinates but z coordinate missing.".to_owned(),
-        ))?;
-        //check if there are no more elements
-        if seq.next_element::<String>()?.is_some() {
-            Err(de::Error::invalid_length(4, &self))
-        } else if x.len() != 2 {
-            Err(de::Error::custom(format!(
-                "x coordinates need two field elements for G2, but got {}",
-                x.len()
-            )))
-        } else if y.len() != 2 {
-            Err(de::Error::custom(format!(
-                "y coordinates need two field elements for G2, but got {}",
-                y.len()
-            )))
-        } else if z.len() != 2 {
-            Err(de::Error::custom(format!(
-                "z coordinates need two field elements for G2, but got {}",
-                z.len()
-            )))
-        } else {
-            P::g2_from_strings_projective(&x[0], &x[1], &y[0], &y[1], &z[0], &z[1], self.check)
-                .map_err(|_| de::Error::custom("invalid data"))
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: de::SeqAccess<'de>,
+        {
+            let x = seq.next_element::<Vec<String>>()?.ok_or(de::Error::custom(
+                "expected G1 projective coordinates but x coordinate missing.".to_owned(),
+            ))?;
+            let y = seq.next_element::<Vec<String>>()?.ok_or(de::Error::custom(
+                "expected G2 projective coordinates but y coordinate missing.".to_owned(),
+            ))?;
+            let z = seq.next_element::<Vec<String>>()?.ok_or(de::Error::custom(
+                "expected G2 projective coordinates but z coordinate missing.".to_owned(),
+            ))?;
+            //check if there are no more elements
+            if seq.next_element::<String>()?.is_some() {
+                Err(de::Error::invalid_length(4, &self))
+            } else if x.len() != 2 {
+                Err(de::Error::custom(format!(
+                    "x coordinates need two field elements for G2, but got {}",
+                    x.len()
+                )))
+            } else if y.len() != 2 {
+                Err(de::Error::custom(format!(
+                    "y coordinates need two field elements for G2, but got {}",
+                    y.len()
+                )))
+            } else if z.len() != 2 {
+                Err(de::Error::custom(format!(
+                    "z coordinates need two field elements for G2, but got {}",
+                    z.len()
+                )))
+            } else {
+                P::g2_from_strings_projective(&x[0], &x[1], &y[0], &y[1], &z[0], &z[1], self.check)
+                    .map_err(|_| de::Error::custom("invalid data"))
+            }
         }
     }
-}
 
-struct TargetGroupVisitor<P: Pairing + CircomArkworksPairingBridge>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    phantom_data: PhantomData<P>,
-}
+    pub(super) struct TargetGroupVisitor<P: Pairing + CircomArkworksPairingBridge>
+    where
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
+    {
+        phantom_data: PhantomData<P>,
+    }
 
-impl<P: Pairing + CircomArkworksPairingBridge> TargetGroupVisitor<P>
-where
-    P::BaseField: CircomArkworksPrimeFieldBridge,
-    P::ScalarField: CircomArkworksPrimeFieldBridge,
-{
-    fn new() -> Self {
-        Self {
-            phantom_data: PhantomData,
+    impl<P: Pairing + CircomArkworksPairingBridge> TargetGroupVisitor<P>
+    where
+        P::BaseField: CircomArkworksPrimeFieldBridge,
+        P::ScalarField: CircomArkworksPrimeFieldBridge,
+    {
+        pub(super) fn new() -> Self {
+            Self {
+                phantom_data: PhantomData,
+            }
         }
     }
 }
@@ -593,7 +604,7 @@ where
     {
         // this is only called by proofs and verification key, therefore we
         // always check as they are constant size and very small.
-        deserializer.deserialize_seq(G1Visitor::<Self>::new(CheckElement::Yes))
+        deserializer.deserialize_seq(helpers::G1Visitor::<Self>::new(CheckElement::Yes))
     }
     /// Deserializes element of G2 using deserializer
     fn deserialize_g2_element<'de, D>(deserializer: D) -> Result<Self::G2Affine, D::Error>
@@ -602,7 +613,7 @@ where
     {
         // this is only called by proofs and verification key, therefore we
         // always check as they are constant size and very small.
-        deserializer.deserialize_seq(G2Visitor::<Self>::new(CheckElement::Yes))
+        deserializer.deserialize_seq(helpers::G2Visitor::<Self>::new(CheckElement::Yes))
     }
     /// Deserializes element of Gt using deserializer
     fn deserialize_gt_element<'de, D>(deserializer: D) -> Result<Self::TargetField, D::Error>
@@ -613,7 +624,7 @@ where
     where
         D: de::Deserializer<'de>,
     {
-        deserializer.deserialize_str(FrVisitor::<Self>::new())
+        deserializer.deserialize_str(helpers::FrVisitor::<Self>::new())
     }
     /// Serializes element of G1 using serializer
     fn serialize_g1<S: Serializer>(p: &Self::G1Affine, ser: S) -> Result<S::Ok, S::Error> {

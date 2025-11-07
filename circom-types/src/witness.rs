@@ -92,7 +92,8 @@ impl<F: CircomArkworksPrimeFieldBridge> Witness<F> {
 }
 
 #[cfg(test)]
-mod tests {
+#[cfg(feature = "bn254")]
+mod bn254_tests {
     use std::fs::File;
 
     use crate::tests::groth16_bn254_kats;
@@ -116,11 +117,19 @@ mod tests {
             }
         );
     }
+}
+
+#[cfg(test)]
+#[cfg(feature = "bls12-381")]
+mod bls12_381_tests {
+    use std::fs::File;
+
+    use crate::tests::groth16_bls12_381_kats;
+
+    use super::Witness;
 
     #[test]
-    #[cfg(feature = "bls12-381")]
     fn can_deser_witness_bls12381() {
-        use crate::tests::groth16_bls12_381_kats;
         let groth16_bls12_381_kats = groth16_bls12_381_kats();
         let witness = File::open(groth16_bls12_381_kats.join("witness.wtns")).unwrap();
         let is_witness = Witness::<ark_bls12_381::Fr>::from_reader(witness).unwrap();

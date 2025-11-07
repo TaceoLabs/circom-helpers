@@ -1,4 +1,4 @@
-//! This module defines the [`Groth16Proof`] struct that implements de/serialization using [`serde`].
+//! This module defines the [`CircomGroth16Proof`] struct that implements de/serialization using [`serde`].
 use crate::traits::{CircomArkworksPairingBridge, CircomArkworksPrimeFieldBridge};
 use ark_ec::pairing::Pairing;
 use serde::{Deserialize, Serialize};
@@ -97,6 +97,7 @@ mod bls12_381_tests {
 }
 
 #[cfg(test)]
+#[cfg(feature = "bn254")]
 mod bn254_tests {
     use super::*;
     use crate::{groth16::test_utils, tests::groth16_bn254_kats};

@@ -377,8 +377,6 @@ mod bls12_381_tests {
     use super::*;
     use std::fs::File;
 
-    use std::str::FromStr;
-
     #[test]
     fn can_deser_bls12_381_mult2_key() {
         use crate::tests::groth16_bls12_381_kats;

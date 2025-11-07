@@ -62,8 +62,8 @@ where
     P::ScalarField: CircomArkworksPrimeFieldBridge,
 {
     /// Deserializes a [`JsonVerificationKey`] from a reader.
-    pub fn from_reader<R: Read>(rdr: R) -> Result<Self, serde_json::Error> {
-        serde_json::from_reader(rdr)
+    pub fn from_reader<R: Read>(r: R) -> Result<Self, serde_json::Error> {
+        serde_json::from_reader(r)
     }
 }
 
@@ -146,7 +146,7 @@ where
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str(
             "a sequence of elements representing 
-        projective points on G1, which in turn are seqeunces of three
+        projective points on G1, which in turn are sequences of three
          elements on the BaseField of the Curve.",
         )
     }
