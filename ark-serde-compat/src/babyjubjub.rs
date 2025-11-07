@@ -1,3 +1,12 @@
+//! Serialization and deserialization functions for BabyJubJub curve types.
+//!
+//! This module provides serde-compatible serialization and deserialization functions
+//! for BabyJubJub curve types, including field elements (Fr, Fq) and curve points
+//! (EdwardsAffine).
+//!
+//! All field elements are serialized as decimal strings. Curve points are serialized
+//! in affine coordinates as arrays of two coordinate strings.
+
 use serde::{
     Serializer,
     de::{self},
@@ -7,6 +16,9 @@ use std::str::FromStr;
 
 use crate::SerdeCompatError;
 
+/// Serialize a BabyJubJub Fr (scalar field) element as a decimal string.
+///
+/// The Fr field element is serialized to its decimal string representation.
 pub fn serialize_fr<S: Serializer>(
     f: &taceo_ark_babyjubjub::Fr,
     ser: S,
@@ -14,6 +26,9 @@ pub fn serialize_fr<S: Serializer>(
     super::serialize_f(f, ser)
 }
 
+/// Serialize a BabyJubJub Fq (base field) element as a decimal string.
+///
+/// The Fq field element is serialized to its decimal string representation.
 pub fn serialize_fq<S: Serializer>(
     f: &taceo_ark_babyjubjub::Fq,
     ser: S,
@@ -21,6 +36,10 @@ pub fn serialize_fq<S: Serializer>(
     super::serialize_f(f, ser)
 }
 
+/// Serialize a BabyJubJub affine point as an array of two coordinate strings.
+///
+/// The EdwardsAffine point is serialized as `[x, y]` where each coordinate
+/// is a decimal string representing an Fq element.
 pub fn serialize_babyjubjub_affine<S: Serializer>(
     p: &taceo_ark_babyjubjub::EdwardsAffine,
     ser: S,
@@ -32,6 +51,9 @@ pub fn serialize_babyjubjub_affine<S: Serializer>(
     x_seq.end()
 }
 
+/// Serialize a sequence of BabyJubJub affine points as an array of coordinate pair arrays.
+///
+/// Each EdwardsAffine point is serialized as `[x, y]` where each coordinate is a decimal string.
 pub fn serialize_babyjubjub_affine_sequence<S: Serializer>(
     ps: &[taceo_ark_babyjubjub::EdwardsAffine],
     ser: S,
@@ -44,6 +66,9 @@ pub fn serialize_babyjubjub_affine_sequence<S: Serializer>(
     seq.end()
 }
 
+/// Serialize a BabyJubJub Fq element as a decimal string.
+///
+/// This function is an alias for compatibility. Use `serialize_fq` for consistency.
 pub fn serialize_babyjubjub_fq<S: Serializer>(
     p: &taceo_ark_babyjubjub::Fq,
     ser: S,
@@ -51,6 +76,9 @@ pub fn serialize_babyjubjub_fq<S: Serializer>(
     ser.serialize_str(&p.to_string())
 }
 
+/// Serialize a sequence of BabyJubJub Fq elements as an array of decimal strings.
+///
+/// Each Fq element is serialized as a decimal string.
 pub fn serialize_babyjubjub_fq_sequence<S: Serializer>(
     ps: &[taceo_ark_babyjubjub::Fq],
     ser: S,
@@ -62,6 +90,10 @@ pub fn serialize_babyjubjub_fq_sequence<S: Serializer>(
     seq.end()
 }
 
+/// Deserialize a BabyJubJub affine point from an array of two coordinate strings.
+///
+/// The EdwardsAffine point is deserialized from `[x, y]` format. Validates that the
+/// point is on the curve and in the correct subgroup.
 pub fn deserialize_babyjubjub_affine<'de, D>(
     deserializer: D,
 ) -> Result<taceo_ark_babyjubjub::EdwardsAffine, D::Error>
@@ -71,6 +103,10 @@ where
     deserializer.deserialize_seq(BabyJubJubAffineVisitor)
 }
 
+/// Deserialize a sequence of BabyJubJub affine points from an array of coordinate pair arrays.
+///
+/// Each EdwardsAffine point is deserialized from `[x, y]` format. Validates that all points
+/// are on the curve and in the correct subgroup.
 pub fn deserialize_babyjubjub_affine_sequence<'de, D>(
     deserializer: D,
 ) -> Result<Vec<taceo_ark_babyjubjub::EdwardsAffine>, D::Error>
@@ -80,6 +116,9 @@ where
     deserializer.deserialize_seq(BabyJubJubAffineSeqVisitor { size: None })
 }
 
+/// Deserialize a BabyJubJub Fr (scalar field) element from a decimal string.
+///
+/// The Fr field element is deserialized from its decimal string representation.
 pub fn deserialize_babyjubjub_fr<'de, D>(
     deserializer: D,
 ) -> Result<taceo_ark_babyjubjub::Fr, D::Error>
@@ -89,6 +128,9 @@ where
     deserializer.deserialize_str(BabyJubJubFrVisitor)
 }
 
+/// Deserialize a BabyJubJub Fq (base field) element from a decimal string.
+///
+/// The Fq field element is deserialized from its decimal string representation.
 pub fn deserialize_babyjubjub_fq<'de, D>(
     deserializer: D,
 ) -> Result<taceo_ark_babyjubjub::Fq, D::Error>
@@ -98,6 +140,9 @@ where
     deserializer.deserialize_str(BabyJubJubFqVisitor)
 }
 
+/// Deserialize a sequence of BabyJubJub Fq elements from an array of decimal strings.
+///
+/// Each Fq element is deserialized from its decimal string representation.
 pub fn deserialize_babyjubjub_fq_sequence<'de, D>(
     deserializer: D,
 ) -> Result<Vec<taceo_ark_babyjubjub::Fq>, D::Error>

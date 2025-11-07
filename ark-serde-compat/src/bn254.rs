@@ -1,17 +1,36 @@
+//! Serialization and deserialization functions for BN254 curve types.
+//!
+//! This module provides serde-compatible serialization and deserialization functions
+//! for BN254 curve types, including field elements (Fr, Fq), curve points (G1, G2),
+//! and target group elements (GT/Fq12).
+//!
+//! All field elements are serialized as decimal strings. Curve points are serialized
+//! in projective coordinates as arrays of strings.
+
 use ark_ec::{AffineRepr as _, CurveGroup as _};
 use serde::{Serializer, de, ser::SerializeSeq as _};
 use std::str::FromStr;
 
 use crate::SerdeCompatError;
 
+/// Serialize a BN254 Fr (scalar field) element as a decimal string.
+///
+/// The Fr field element is serialized to its decimal string representation.
 pub fn serialize_fr<S: Serializer>(f: &ark_bn254::Fr, ser: S) -> Result<S::Ok, S::Error> {
     super::serialize_f(f, ser)
 }
 
+/// Serialize a BN254 Fq (base field) element as a decimal string.
+///
+/// The Fq field element is serialized to its decimal string representation.
 pub fn serialize_fq<S: Serializer>(f: &ark_bn254::Fq, ser: S) -> Result<S::Ok, S::Error> {
     super::serialize_f(f, ser)
 }
 
+/// Serialize a BN254 G1 point as an array of three coordinate strings.
+///
+/// The G1 point is serialized in projective coordinates as `[x, y, z]` where each
+/// coordinate is a decimal string. The point at infinity is represented as `["0", "1", "0"]`.
 pub fn serialize_g1<S: Serializer>(p: &ark_bn254::G1Affine, ser: S) -> Result<S::Ok, S::Error> {
     let strings = g1_to_strings_projective(p);
     let mut seq = ser.serialize_seq(Some(strings.len()))?;
@@ -21,6 +40,10 @@ pub fn serialize_g1<S: Serializer>(p: &ark_bn254::G1Affine, ser: S) -> Result<S:
     seq.end()
 }
 
+/// Serialize a BN254 G2 point as a 3x2 array of coordinate strings.
+///
+/// The G2 point is serialized in projective coordinates as `[[x0, x1], [y0, y1], [z0, z1]]`
+/// where each coordinate is a pair of decimal strings representing an Fq2 element.
 pub fn serialize_g2<S: Serializer>(p: &ark_bn254::G2Affine, ser: S) -> Result<S::Ok, S::Error> {
     let (x, y) = (p.x, p.y);
     let mut x_seq = ser.serialize_seq(Some(3))?;
@@ -30,6 +53,10 @@ pub fn serialize_g2<S: Serializer>(p: &ark_bn254::G2Affine, ser: S) -> Result<S:
     x_seq.end()
 }
 
+/// Serialize a BN254 GT (target group) element as a 2x3x2 array of strings.
+///
+/// The Fq12 element is serialized as `[[[String; 2]; 3], [[String; 2]; 3]]` representing
+/// the two Fq6 components, each with three Fq2 components.
 pub fn serialize_gt<S: Serializer>(p: &ark_bn254::Fq12, ser: S) -> Result<S::Ok, S::Error> {
     let a = p.c0;
     let b = p.c1;
@@ -55,6 +82,9 @@ pub fn serialize_gt<S: Serializer>(p: &ark_bn254::Fq12, ser: S) -> Result<S::Ok,
     seq.end()
 }
 
+/// Serialize a sequence of BN254 G1 points as an array of projective coordinate arrays.
+///
+/// Each G1 point is serialized as `[x, y, z]` where each coordinate is a decimal string.
 pub fn serialize_g1_sequence<S: Serializer>(
     ps: &[ark_bn254::G1Affine],
     ser: S,
@@ -80,6 +110,9 @@ struct Bn254G2Visitor;
 struct Bn254GtVisitor;
 struct Bn254G1SeqVisitor;
 
+/// Deserialize a BN254 Fr (scalar field) element from a decimal string.
+///
+/// The Fr field element is deserialized from its decimal string representation.
 pub fn deserialize_fr<'de, D>(deserializer: D) -> Result<ark_bn254::Fr, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -87,6 +120,9 @@ where
     super::deserialize_f(deserializer)
 }
 
+/// Deserialize a BN254 Fq (base field) element from a decimal string.
+///
+/// The Fq field element is deserialized from its decimal string representation.
 pub fn deserialize_fq<'de, D>(deserializer: D) -> Result<ark_bn254::Fq, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -94,6 +130,11 @@ where
     super::deserialize_f(deserializer)
 }
 
+/// Deserialize a BN254 G1 point from an array of three coordinate strings.
+///
+/// The G1 point is deserialized from projective coordinates `[x, y, z]` where each
+/// coordinate is a decimal string. Validates that the point is on the curve and in
+/// the correct subgroup.
 pub fn deserialize_g1<'de, D>(deserializer: D) -> Result<ark_bn254::G1Affine, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -101,6 +142,11 @@ where
     deserializer.deserialize_seq(Bn254G1Visitor)
 }
 
+/// Deserialize a BN254 G2 point from a 3x2 array of coordinate strings.
+///
+/// The G2 point is deserialized from projective coordinates `[[x0, x1], [y0, y1], [z0, z1]]`
+/// where each coordinate pair represents an Fq2 element. Validates that the point is on
+/// the curve and in the correct subgroup.
 pub fn deserialize_g2<'de, D>(deserializer: D) -> Result<ark_bn254::G2Affine, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -108,6 +154,9 @@ where
     deserializer.deserialize_seq(Bn254G2Visitor)
 }
 
+/// Deserialize a BN254 GT (target group) element from a 2x3x2 array of strings.
+///
+/// The Fq12 element is deserialized from `[[[String; 2]; 3], [[String; 2]; 3]]` format.
 pub fn deserialize_gt<'de, D>(deserializer: D) -> Result<ark_bn254::Fq12, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -115,6 +164,10 @@ where
     deserializer.deserialize_seq(Bn254GtVisitor)
 }
 
+/// Deserialize a sequence of BN254 G1 points from an array of projective coordinate arrays.
+///
+/// Each G1 point is deserialized from `[x, y, z]` format. Validates that all points are
+/// on the curve and in the correct subgroup.
 pub fn deserialize_g1_sequence<'de, D>(
     deserializer: D,
 ) -> Result<Vec<ark_bn254::G1Affine>, D::Error>
