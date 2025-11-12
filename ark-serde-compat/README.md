@@ -45,6 +45,11 @@ G1 points are serialized in projective coordinates `[x, y, z]`:
 ["1", "2", "1"]
 ```
 
+The point at infinity is represented as:
+```json
+["0", "1", "0"]
+```
+
 ### BN254 G2 Points
 G2 points are serialized as `[[x0, x1], [y0, y1], [z0, z1]]`:
 ```json
