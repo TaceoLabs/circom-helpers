@@ -1,4 +1,4 @@
-//! This module contains traits for serializing and deserializing field elements and curve points into and from circom files to arkworks representation.
+//! Traits for converting circom file formats to arkworks types.
 
 use std::io::Read;
 

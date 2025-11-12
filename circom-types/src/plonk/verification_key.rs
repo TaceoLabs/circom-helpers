@@ -16,62 +16,62 @@ pub struct JsonVerificationKey<P: Pairing + CircomArkworksPairingBridge> {
     /// The number of public inputs
     #[serde(rename = "nPublic")]
     pub n_public: usize,
-    /// The size of the fft domain
+    /// The size of the FFT domain
     pub power: usize,
-    /// Proof element k1
+    /// Constant k1
     #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
     pub k1: P::ScalarField,
-    /// Proof element k2
+    /// Constant k2
     #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
     pub k2: P::ScalarField,
-    /// Proof element Qm
+    /// Selector polynomial Qm commitment
     #[serde(rename = "Qm")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
     pub qm: P::G1Affine,
-    /// Proof element Ql
+    /// Selector polynomial Ql commitment
     #[serde(rename = "Ql")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
     pub ql: P::G1Affine,
-    /// Proof element Qr
+    /// Selector polynomial Qr commitment
     #[serde(rename = "Qr")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
     pub qr: P::G1Affine,
-    /// Proof element Qo
+    /// Selector polynomial Qo commitment
     #[serde(rename = "Qo")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
     pub qo: P::G1Affine,
-    /// Proof element Qc
+    /// Selector polynomial Qc commitment
     #[serde(rename = "Qc")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
     pub qc: P::G1Affine,
-    /// Proof element s1
+    /// Permutation polynomial σ1 commitment
     #[serde(rename = "S1")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
     pub s1: P::G1Affine,
-    /// Proof element s2
+    /// Permutation polynomial σ2 commitment
     #[serde(rename = "S2")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
     pub s2: P::G1Affine,
-    /// Proof element s3
+    /// Permutation polynomial σ3 commitment
     #[serde(rename = "S3")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
     pub s3: P::G1Affine,
-    /// Proof element x2
+    /// Trusted setup element in G2
     #[serde(rename = "X_2")]
     #[serde(serialize_with = "P::serialize_g2::<_>")]
     #[serde(deserialize_with = "P::deserialize_g2::<_>")]
     pub x2: P::G2Affine,
-    // This is curve.Fr.toObject(curve.Fr.w[zkey.power]) so some root of unity (can be computed as in groth16.rs fn root_of_unity() I guess)
+    /// Root of unity for the domain of size 2^power
     #[serde(rename = "w")]
     #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]

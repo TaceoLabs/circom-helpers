@@ -22,59 +22,59 @@ pub struct PlonkProof<P: Pairing + CircomArkworksPairingBridge> {
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
     pub c: P::G1Affine,
+    /// Proof element Z
     #[serde(rename = "Z")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
-    /// Proof element Z
     pub z: P::G1Affine,
+    /// Proof element T1
     #[serde(rename = "T1")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
-    /// Proof element T1
     pub t1: P::G1Affine,
+    /// Proof element T2
     #[serde(rename = "T2")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
-    /// Proof element T2
     pub t2: P::G1Affine,
+    /// Proof element T3
     #[serde(rename = "T3")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
-    /// Proof element T3
     pub t3: P::G1Affine,
+    /// Proof element Wxi
     #[serde(rename = "Wxi")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
-    /// Proof element Wxi
     pub wxi: P::G1Affine,
+    /// Proof element Wxiw
     #[serde(rename = "Wxiw")]
     #[serde(serialize_with = "P::serialize_g1::<_>")]
     #[serde(deserialize_with = "P::deserialize_g1::<_>")]
-    /// Proof element Wxiw
     pub wxiw: P::G1Affine,
+    /// Evaluation of polynomial a
     #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
-    /// Proof element eval_a
     pub eval_a: P::ScalarField,
+    /// Evaluation of polynomial b
     #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
-    /// Proof element eval_b
     pub eval_b: P::ScalarField,
+    /// Evaluation of polynomial c
     #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
-    /// Proof element eval_c
     pub eval_c: P::ScalarField,
+    /// Evaluation of polynomial s1
     #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
-    /// Proof element eval_s1
     pub eval_s1: P::ScalarField,
+    /// Evaluation of polynomial s2
     #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
-    /// Proof element eval_s2
     pub eval_s2: P::ScalarField,
+    /// Evaluation of polynomial z at ω
     #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
-    /// Proof element eval_zw
     pub eval_zw: P::ScalarField,
     /// The protocol used to generate the proof
     pub protocol: String,
