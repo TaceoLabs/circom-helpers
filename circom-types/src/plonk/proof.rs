@@ -5,7 +5,7 @@ use ark_ec::pairing::Pairing;
 use serde::{Deserialize, Serialize};
 
 /// Represents a Plonk proof that was created by circom. Supports de/serialization using [`serde`].
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlonkProof<P: Pairing + CircomArkworksPairingBridge> {
     /// Proof element A (or 1)
     #[serde(rename = "A")]

@@ -6,10 +6,11 @@
 //! This crate provides deserialization support for circom's binary and JSON formats,
 //! including proofs, verification keys, witnesses, R1CS constraint systems, and zkeys
 //! for both Groth16 and PLONK proof systems.
-#[cfg(feature = "zkey")]
+#[cfg(all(feature = "zkey", any(feature = "groth16", feature = "plonk")))]
 mod binfile;
 #[cfg(feature = "groth16")]
 pub mod groth16;
+#[cfg(feature = "plonk")]
 pub mod plonk;
 
 #[cfg(feature = "r1cs")]
@@ -29,7 +30,7 @@ pub use witness::Witness;
 #[cfg(feature = "witness")]
 pub use witness::WitnessParserError;
 
-#[cfg(feature = "zkey")]
+#[cfg(all(feature = "zkey", any(feature = "groth16", feature = "plonk")))]
 pub use binfile::ZKeyParserError;
 
 pub use taceo_ark_serde_compat::CheckElement;

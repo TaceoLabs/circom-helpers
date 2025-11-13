@@ -1,4 +1,4 @@
-//! This module defines the [`JsonVerificationKey`] struct that implements de/serialization using [`serde`].
+//! This module defines the [`VerificationKey`] struct that implements de/serialization using [`serde`].
 use std::io::Read;
 
 use ark_ec::pairing::Pairing;
@@ -48,7 +48,7 @@ pub struct VerificationKey<P: Pairing + CircomArkworksPairingBridge> {
 }
 
 impl<P: Pairing + CircomArkworksPairingBridge> VerificationKey<P> {
-    /// Deserializes a [`JsonVerificationKey`] from a reader.
+    /// Deserializes a [`VerificationKey`] from a reader.
     pub fn from_reader<R: Read>(r: R) -> Result<Self, serde_json::Error> {
         serde_json::from_reader(r)
     }
@@ -159,7 +159,7 @@ mod bls12_381_test {
 
     use crate::test_utils;
 
-    use super::JsonVerificationKey;
+    use super::VerificationKey;
     use crate::tests::groth16_bls12_381_kats;
     use ark_bls12_381::Bls12_381;
 
@@ -169,7 +169,7 @@ mod bls12_381_test {
         let groth16_bls12_381_kats = groth16_bls12_381_kats();
         let vk_string =
             std::fs::read_to_string(groth16_bls12_381_kats.join("verification_key.json")).unwrap();
-        let vk = serde_json::from_str::<JsonVerificationKey<Bls12_381>>(&vk_string).unwrap();
+        let vk = serde_json::from_str::<VerificationKey<Bls12_381>>(&vk_string).unwrap();
         let alpha_1 = test_utils::to_g1_bls12_381!(
             "573513743870798705896078935465463988747193691665514373553428213826028808426481266659437596949247877550493216010640",
             "3195692015363680281472407569911592878057544540747596023043039898101401350267601241530895953964131482377769738361054"
@@ -235,7 +235,7 @@ mod bls12_381_test {
         assert_eq!(vk.ic, ic);
 
         let ser_vk = serde_json::to_string(&vk).unwrap();
-        let der_vk = serde_json::from_str::<JsonVerificationKey<Bls12_381>>(&ser_vk).unwrap();
+        let der_vk = serde_json::from_str::<VerificationKey<Bls12_381>>(&ser_vk).unwrap();
         assert_eq!(der_vk, vk);
     }
 }

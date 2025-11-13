@@ -94,6 +94,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> BinFile<P> {
         Cursor::new(std::mem::take(&mut self.sections[id - 1]))
     }
 
+    #[cfg(feature = "plonk")]
     pub(crate) fn take_section_raw(&mut self, id: usize) -> Vec<u8> {
         std::mem::take(&mut self.sections[id - 1])
     }

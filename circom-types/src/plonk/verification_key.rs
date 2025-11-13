@@ -1,4 +1,4 @@
-//! This module defines the [`JsonVerificationKey`] struct that implements de/serialization using [`serde`].
+//! This module defines the [`VerificationKey`] struct that implements de/serialization using [`serde`].
 
 use ark_ec::pairing::Pairing;
 
@@ -8,7 +8,7 @@ use crate::traits::CircomArkworksPairingBridge;
 
 /// Represents a verification key in JSON format that was created by circom. Supports de/serialization using [`serde`].
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JsonVerificationKey<P: Pairing + CircomArkworksPairingBridge> {
+pub struct VerificationKey<P: Pairing + CircomArkworksPairingBridge> {
     /// The protocol (Plonk in this case)
     pub protocol: String,
     /// The curve
@@ -85,7 +85,7 @@ mod bls12_381_tests {
 
     use crate::test_utils;
 
-    use super::JsonVerificationKey;
+    use super::VerificationKey;
     use crate::tests::plonk_bls12_381_kats;
     use std::{fs, str::FromStr};
 
@@ -94,7 +94,7 @@ mod bls12_381_tests {
         let plonk_bls12_381_kats = plonk_bls12_381_kats();
         let vk_string =
             fs::read_to_string(plonk_bls12_381_kats.join("verification_key.json")).unwrap();
-        let vk = serde_json::from_str::<JsonVerificationKey<Bls12_381>>(&vk_string).unwrap();
+        let vk = serde_json::from_str::<VerificationKey<Bls12_381>>(&vk_string).unwrap();
         let qm = test_utils::to_g1_bls12_381!(
             "1161934215332947887776770080672672736071220168419763784744984455867029974807069620136708593397374748473799982382355",
             "2475816809115390425448758399149658723861102823935625019162174879917945061566694894582346638789223177428431811949584"
@@ -153,7 +153,7 @@ mod bls12_381_tests {
         );
 
         let ser_vk = serde_json::to_string(&vk).unwrap();
-        let der_vk = serde_json::from_str::<JsonVerificationKey<Bls12_381>>(&ser_vk).unwrap();
+        let der_vk = serde_json::from_str::<VerificationKey<Bls12_381>>(&ser_vk).unwrap();
         assert_eq!(der_vk, vk);
     }
 }
@@ -165,14 +165,14 @@ mod bn254_tests {
 
     use crate::{test_utils, tests::plonk_bn254_kats};
 
-    use super::JsonVerificationKey;
+    use super::VerificationKey;
     use std::{fs, str::FromStr};
 
     #[test]
     fn can_serde_vk_bn254() {
         let plonk_bn254_kats = plonk_bn254_kats();
         let vk_string = fs::read_to_string(plonk_bn254_kats.join("verification_key.json")).unwrap();
-        let vk = serde_json::from_str::<JsonVerificationKey<Bn254>>(&vk_string).unwrap();
+        let vk = serde_json::from_str::<VerificationKey<Bn254>>(&vk_string).unwrap();
         let qm = test_utils::to_g1_bn254!(
             "7677917713632822727920361992493844364860461207903462488868552343030933598587",
             "18785788385944964807498119744800331077684021375283066763155481595429754250127"
@@ -231,7 +231,7 @@ mod bn254_tests {
         );
 
         let ser_vk = serde_json::to_string(&vk).unwrap();
-        let der_vk = serde_json::from_str::<JsonVerificationKey<Bn254>>(&ser_vk).unwrap();
+        let der_vk = serde_json::from_str::<VerificationKey<Bn254>>(&ser_vk).unwrap();
         assert_eq!(der_vk, vk);
     }
 }

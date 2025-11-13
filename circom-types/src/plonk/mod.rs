@@ -10,6 +10,6 @@ mod zkey;
 #[cfg(feature = "proof")]
 pub use proof::PlonkProof;
 #[cfg(feature = "verification-key")]
-pub use verification_key::JsonVerificationKey;
+pub use verification_key::VerificationKey;
 #[cfg(feature = "zkey")]
 pub use zkey::{Additions, CircomPolynomial, VerifyingKey, ZKey};
