@@ -218,14 +218,14 @@ impl CircomGroth16MaterialBuilder {
     /// # Errors
     ///
     /// Returns a [`ZkeyError`] if the file cannot be read or the fingerprint does not match the expected value.
-    pub fn from_paths(
+    pub fn build_from_paths(
         self,
         zkey_path: impl AsRef<Path>,
         graph_path: impl AsRef<Path>,
     ) -> Result<CircomGroth16Material, ZkeyError> {
         let zkey_bytes = std::fs::read(zkey_path)?;
         let graph_bytes = std::fs::read(graph_path)?;
-        self.from_bytes(&zkey_bytes, &graph_bytes)
+        self.build_from_bytes(&zkey_bytes, &graph_bytes)
     }
 
     /// Builds Groth16 material directly from `.zkey` and graph readers.
@@ -233,7 +233,7 @@ impl CircomGroth16MaterialBuilder {
     /// # Errors
     ///
     /// Returns a [`ZkeyError::ZkeyFingerprintMismatch`] if any embedded fingerprint check fails.
-    pub fn from_reader(
+    pub fn build_from_reader(
         self,
         mut zkey_reader: impl std::io::Read,
         mut graph_reader: impl std::io::Read,
@@ -242,7 +242,7 @@ impl CircomGroth16MaterialBuilder {
         zkey_reader.read_to_end(&mut zkey_bytes)?;
         let mut graph_bytes = Vec::new();
         graph_reader.read_to_end(&mut graph_bytes)?;
-        self.from_bytes(&zkey_bytes, &graph_bytes)
+        self.build_from_bytes(&zkey_bytes, &graph_bytes)
     }
 
     /// Builds Groth16 material directly from in-memory `.zkey` and graph bytes.
@@ -250,7 +250,7 @@ impl CircomGroth16MaterialBuilder {
     /// # Errors
     ///
     /// Returns a [`ZkeyError::ZkeyFingerprintMismatch`] if any embedded fingerprint check fails.
-    pub fn from_bytes(
+    pub fn build_from_bytes(
         self,
         zkey_bytes: &[u8],
         graph_bytes: &[u8],
@@ -292,25 +292,25 @@ impl CircomGroth16MaterialBuilder {
     /// [`ZkeyError::ZkeyFingerprintMismatch`] if the downloaded bytes do not
     /// match the expected fingerprints.
     #[cfg(feature = "reqwest")]
-    pub async fn from_urls(
+    pub async fn build_from_urls(
         self,
         zkey_url: impl reqwest::IntoUrl,
         graph_url: impl reqwest::IntoUrl,
     ) -> Result<CircomGroth16Material, ZkeyError> {
         let zkey_bytes = reqwest::get(zkey_url).await?.bytes().await?;
         let graph_bytes = reqwest::get(graph_url).await?.bytes().await?;
-        self.from_bytes(&zkey_bytes, &graph_bytes)
+        self.build_from_bytes(&zkey_bytes, &graph_bytes)
     }
 
     #[cfg(feature = "reqwest-blocking")]
-    pub fn from_urls_blocking(
+    pub fn build_from_urls_blocking(
         self,
         zkey_url: impl reqwest::IntoUrl,
         graph_url: impl reqwest::IntoUrl,
     ) -> Result<CircomGroth16Material, ZkeyError> {
         let zkey_bytes = reqwest::blocking::get(zkey_url)?.bytes()?;
         let graph_bytes = reqwest::blocking::get(graph_url)?.bytes()?;
-        self.from_bytes(&zkey_bytes, &graph_bytes)
+        self.build_from_bytes(&zkey_bytes, &graph_bytes)
     }
 }
 
