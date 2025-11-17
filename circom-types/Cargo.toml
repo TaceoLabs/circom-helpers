@@ -3,27 +3,17 @@ name = "circom-types"
 version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 repository.workspace = true
 license.workspace = true
-rust-version.workspace = true
 
-[features]
-default = ["bn254", "full-groth16", "parallel"]
-bn254 = ["dep:ark-bn254", "taceo-ark-serde-compat/bn254"]
-bls12-381 = ["dep:ark-bls12-381", "taceo-ark-serde-compat/bls12-381"]
-zkey = []
-verification-key = []
-proof = []
-r1cs = []
-public-input = []
-witness = []
-groth16 = []
-plonk = []
-full-groth16 = ["zkey", "verification-key", "proof", "r1cs", "public-input", "witness", "groth16"]
-full-plonk = ["zkey", "verification-key", "proof", "r1cs", "public-input", "witness", "plonk"]
-full = ["full-groth16", "full-plonk", "bn254", "bls12-381"]
-bin = ["dep:tracing-subscriber", "dep:clap", "dep:eyre", "bn254", "zkey", "groth16"]
-parallel = ["dep:rayon"]
+[package.metadata.cargo-all-features]
+skip_feature_sets = [
+  ["full-groth16", "full-plonk"],
+]
+denylist = ["parallel", "bin", "full", "bls12-381"]
+always_include_features = ["bn254"]
+max_combination_size = 3
 
 [[bin]]
 name = "convert-zkey-to-ark"
@@ -32,15 +22,14 @@ required-features = ["bin"]
 
 [dependencies]
 ark-bls12-381 = { workspace = true, optional = true }
-taceo-ark-serde-compat = { workspace = true }
 ark-bn254 = { workspace = true, optional = true }
-ark-ec = { workspace = true }
+ark-ec = { workspace = true, optional = true }
 ark-ff = { workspace = true }
+ark-groth16 = { workspace = true, optional = true }
 ark-poly = { workspace = true }
-ark-relations = { workspace = true }
+ark-relations = { workspace = true, optional = true }
 ark-serialize = { workspace = true }
-ark-groth16 = { workspace = true }
-ark-std = { workspace = true }
+ark-std = { workspace = true, optional = true }
 byteorder = { workspace = true }
 clap = { workspace = true, features = ["env"], optional = true }
 eyre = { workspace = true, optional = true }
@@ -48,6 +37,7 @@ num-traits = { workspace = true }
 rayon = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+taceo-ark-serde-compat = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
@@ -55,10 +45,43 @@ tracing-subscriber = { workspace = true, features = ["env-filter"], optional = t
 [dev-dependencies]
 num-bigint = { workspace = true }
 
-[package.metadata.cargo-all-features]
-skip_feature_sets = [
-    ["full-groth16", "full-plonk"],
+[features]
+default = ["bn254", "full-groth16", "parallel"]
+bin = [
+  "bn254",
+  "dep:clap",
+  "dep:eyre",
+  "dep:tracing-subscriber",
+  "groth16",
+  "zkey"
 ]
-denylist = ["parallel", "bin", "full"]
-max_combination_size = 2
-
+bls12-381 = ["dep:ark-bls12-381", "taceo-ark-serde-compat/bls12-381"]
+bn254 = ["dep:ark-bn254", "taceo-ark-serde-compat/bn254"]
+full = ["bls12-381", "bn254", "full-groth16", "full-plonk"]
+full-groth16 = [
+  "groth16",
+  "proof",
+  "public-input",
+  "r1cs",
+  "verification-key",
+  "witness",
+  "zkey"
+]
+full-plonk = [
+  "plonk",
+  "proof",
+  "public-input",
+  "r1cs",
+  "verification-key",
+  "witness",
+  "zkey"
+]
+groth16 = []
+parallel = ["dep:rayon"]
+plonk = []
+proof = ["dep:ark-ec", "dep:ark-groth16"]
+public-input = []
+r1cs = ["dep:ark-std"]
+verification-key = ["dep:ark-ec", "dep:ark-groth16"]
+witness = []
+zkey = ["dep:ark-ec", "dep:ark-groth16", "dep:ark-relations"]

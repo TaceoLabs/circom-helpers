@@ -4,12 +4,11 @@ use std::io::Read;
 use ark_ec::pairing::Pairing;
 use ark_groth16::VerifyingKey;
 use serde::{Deserialize, Serialize};
-
-use crate::traits::CircomArkworksPairingBridge;
+use taceo_ark_serde_compat::CanonicalJsonSerialize;
 
 /// Represents a verification key in JSON format that was created by circom. Supports de/serialization using [`serde`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct VerificationKey<P: Pairing + CircomArkworksPairingBridge> {
+pub struct VerificationKey<P: Pairing + CanonicalJsonSerialize> {
     /// The protocol used to generate the proof (always `"groth16"`)
     pub protocol: String,
     /// The number of public inputs
@@ -47,14 +46,14 @@ pub struct VerificationKey<P: Pairing + CircomArkworksPairingBridge> {
     pub ic: Vec<P::G1Affine>,
 }
 
-impl<P: Pairing + CircomArkworksPairingBridge> VerificationKey<P> {
+impl<P: Pairing + CanonicalJsonSerialize> VerificationKey<P> {
     /// Deserializes a [`VerificationKey`] from a reader.
     pub fn from_reader<R: Read>(r: R) -> Result<Self, serde_json::Error> {
         serde_json::from_reader(r)
     }
 }
 
-impl<P: Pairing + CircomArkworksPairingBridge> From<VerificationKey<P>> for VerifyingKey<P> {
+impl<P: Pairing + CanonicalJsonSerialize> From<VerificationKey<P>> for VerifyingKey<P> {
     fn from(vk: VerificationKey<P>) -> Self {
         VerifyingKey {
             alpha_g1: vk.alpha_1,

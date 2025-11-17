@@ -38,12 +38,12 @@ pub struct ZkeyConvertConfig {
     pub zkey_path: PathBuf,
 
     /// Output path to the matrices file.
-    #[clap(long, env = "MATRICES_PATH", default_value = "matrices.bin")]
-    pub matrices_path: PathBuf,
+    #[clap(long, env = "MATRICES_PATH")]
+    pub matrices_path: Option<PathBuf>,
 
     /// Output path to the proving key file.
-    #[clap(long, env = "PROVING_KEY_PATH", default_value = "pk.bin")]
-    pub pk_path: PathBuf,
+    #[clap(long, env = "PROVING_KEY_PATH")]
+    pub pk_path: Option<PathBuf>,
 
     /// Path to the ark-zkey file.
     #[clap(long, env = "ARKS_ZKEY_PATH", default_value = "arks.zkey")]
@@ -71,16 +71,19 @@ fn main() -> eyre::Result<()> {
         ark_serialize::Compress::Yes
     };
 
-    ark_zkey.matrices.serialize_with_mode(
-        BufWriter::new(File::create(&config.matrices_path)?),
-        compress,
-    )?;
-    tracing::info!("Serialized matrices to {}", config.matrices_path.display());
+    if let Some(matrices_path) = &config.matrices_path {
+        ark_zkey
+            .matrices
+            .serialize_with_mode(BufWriter::new(File::create(matrices_path)?), compress)?;
+        tracing::info!("Serialized matrices to {}", matrices_path.display());
+    }
 
-    ark_zkey
-        .pk
-        .serialize_with_mode(File::create(&config.pk_path)?, compress)?;
-    tracing::info!("Serialized proving key to {}", config.pk_path.display());
+    if let Some(pk_path) = &config.pk_path {
+        ark_zkey
+            .pk
+            .serialize_with_mode(File::create(pk_path)?, compress)?;
+        tracing::info!("Serialized proving key to {}", pk_path.display());
+    }
 
     ark_zkey.serialize_with_mode(File::create(&config.arks_zkey_path)?, compress)?;
     tracing::info!(
