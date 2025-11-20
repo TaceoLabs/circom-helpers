@@ -8,16 +8,8 @@ readme = "./README.md"
 homepage.workspace = true
 repository.workspace = true
 license.workspace = true
-keywords = [
-  "circom",
-  "groth16",
-  "plonk",
-  "serde",
-  "snarkjs",
-  "zero-knowledge",
-  "zk"
-]
-exclude = ["/kats"]
+keywords = ["circom", "groth16", "plonk", "zero-knowledge", "zk"]
+exclude = ["/kats", "CHANGELOG.md"]
 
 [package.metadata.cargo-all-features]
 skip_feature_sets = [
