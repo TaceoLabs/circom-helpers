@@ -6,9 +6,9 @@ use std::{
 
 use ark_bn254::Bn254;
 use ark_serialize::CanonicalSerialize;
-use circom_types::groth16::ArkZkey;
-use circom_types::{CheckElement, groth16::Zkey};
 use clap::Parser;
+use taceo_circom_types::groth16::ArkZkey;
+use taceo_circom_types::{CheckElement, groth16::Zkey};
 
 fn install_tracing() {
     use tracing_subscriber::prelude::*;

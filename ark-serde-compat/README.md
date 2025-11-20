@@ -21,12 +21,12 @@ use ark_bn254::{Fr, G1Affine};
 
 #[derive(Serialize, Deserialize)]
 struct MyStruct {
-    #[serde(serialize_with = "taceo_ark_serde_compat::bn254::serialize_fr")]
-    #[serde(deserialize_with = "taceo_ark_serde_compat::bn254::deserialize_fr")]
+    #[serde(serialize_with = "ark_serde_compat::bn254::serialize_fr")]
+    #[serde(deserialize_with = "ark_serde_compat::bn254::deserialize_fr")]
     scalar: Fr,
 
-    #[serde(serialize_with = "taceo_ark_serde_compat::bn254::serialize_g1")]
-    #[serde(deserialize_with = "taceo_ark_serde_compat::bn254::deserialize_g1")]
+    #[serde(serialize_with = "ark_serde_compat::bn254::serialize_g1")]
+    #[serde(deserialize_with = "ark_serde_compat::bn254::deserialize_g1")]
     point: G1Affine,
 }
 ```

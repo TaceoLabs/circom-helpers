@@ -19,12 +19,12 @@ pub struct VerificationKey<P: Pairing + CircomArkworksPairingBridge> {
     /// The size of the FFT domain
     pub power: usize,
     /// Constant k1
-    #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
-    #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
+    #[serde(serialize_with = "ark_serde_compat::serialize_f")]
+    #[serde(deserialize_with = "ark_serde_compat::deserialize_f")]
     pub k1: P::ScalarField,
     /// Constant k2
-    #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
-    #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
+    #[serde(serialize_with = "ark_serde_compat::serialize_f")]
+    #[serde(deserialize_with = "ark_serde_compat::deserialize_f")]
     pub k2: P::ScalarField,
     /// Selector polynomial Qm commitment
     #[serde(rename = "Qm")]
@@ -73,8 +73,8 @@ pub struct VerificationKey<P: Pairing + CircomArkworksPairingBridge> {
     pub x2: P::G2Affine,
     /// Root of unity for the domain of size 2^power
     #[serde(rename = "w")]
-    #[serde(serialize_with = "taceo_ark_serde_compat::serialize_f")]
-    #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
+    #[serde(serialize_with = "ark_serde_compat::serialize_f")]
+    #[serde(deserialize_with = "ark_serde_compat::deserialize_f")]
     w: P::ScalarField,
 }
 

@@ -28,9 +28,9 @@
 use ark_ec::pairing::Pairing;
 use ark_ff::PrimeField;
 use ark_poly::{Polynomial, univariate::DensePolynomial};
+use ark_serde_compat::CheckElement;
 use ark_serialize::CanonicalDeserialize;
 use std::io::{Cursor, Read};
-use taceo_ark_serde_compat::CheckElement;
 
 use crate::{
     binfile::{BinFile, ZkeyParserError, ZkeyParserResult},

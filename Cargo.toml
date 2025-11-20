@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["ark-serde-compat", "circom-types", "groth16-material"]
+members = ["ark-serde-compat", "circom-types", "groth16", "groth16-material"]
 
 [workspace.package]
 edition = "2024"
@@ -22,8 +22,8 @@ ark-serde-compat = { package = "taceo-ark-serde-compat", path = "ark-serde-compa
 ark-serialize = { version = "0.5", default-features = false }
 ark-std = "0.5"
 byteorder = "1.5"
-circom-types = { package = "taceo-circom-types", path = "circom-types" }
-circom-witness-rs = { git = "https://github.com/TaceoLabs/circom-witness-rs.git", rev = "ee9a648dcc54048ad9ba3a8ab2c8843f359ff024" }
+circom-types = { package = "taceo-circom-types", path = "circom-types", version = "0.1" }
+circom-witness-rs = "0.2.1"
 clap = { version = "4.4.8", features = ["derive"] }
 eyre = "0.6"
 groth16 = { git = "https://github.com/TaceoLabs/groth16.git" }
