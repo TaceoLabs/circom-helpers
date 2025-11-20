@@ -2,10 +2,10 @@
 //!
 //! Various serde compatibility implementations for arkworks-rs types, including serializing
 //! to strings for use in human-readable JSON. The design choices are heavily influenced to
-//! work with circom.
+//! work with Circom.
 //!
 //! This crate provides serialization and deserialization functions for arkworks types that
-//! are compatible with circom's expected JSON format. Field elements are serialized as
+//! are compatible with Circom's expected JSON format. Field elements are serialized as
 //! decimal strings, and curve points are serialized as arrays of coordinate strings.
 //!
 //! ## Features
@@ -68,7 +68,7 @@ mod impl_macro;
 /// specific pairing curves like BN254 and BLS12-381.
 ///
 /// The serialization format uses decimal strings for field elements and arrays of strings
-/// for group elements to ensure compatibility with circom and other tools.
+/// for group elements to ensure compatibility with Circom and other tools.
 pub trait CanonicalJsonSerialize: Pairing {
     /// Serializes a G1 affine point as an array of coordinate strings.
     fn serialize_g1<S: Serializer>(p: &Self::G1Affine, ser: S) -> Result<S::Ok, S::Error>;

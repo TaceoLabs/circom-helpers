@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
-//! Types and utilities for reading circom-generated files into arkworks representations.
+//! Types and utilities for reading Circom-generated files into arkworks representations.
 //!
-//! This crate provides deserialization support for circom's binary and JSON formats,
+//! This crate provides deserialization support for Circom's binary and JSON formats,
 //! including proofs, verification keys, witnesses, R1CS constraint systems, and zkeys
 //! for both Groth16 and PLONK proof systems.
 #[cfg(all(feature = "zkey", any(feature = "groth16", feature = "plonk")))]
@@ -48,7 +48,7 @@ pub(crate) mod reader_utils {
     use std::{io, str::Utf8Error};
     use thiserror::Error;
 
-    /// Error type describing errors during reading circom file headers
+    /// Error type describing errors during reading Circom file headers
     #[derive(Debug, Error)]
     pub enum InvalidHeaderError {
         /// Error during IO operations (reading/opening file, etc.)

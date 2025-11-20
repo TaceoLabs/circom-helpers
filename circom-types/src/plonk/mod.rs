@@ -1,4 +1,4 @@
-//! This module defines types related to Plonk used in circom and utilities to read these types from files.
+//! This module defines types related to Plonk used in Circom and utilities to read these types from files.
 
 #[cfg(feature = "proof")]
 mod proof;

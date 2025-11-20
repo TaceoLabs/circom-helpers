@@ -1,4 +1,4 @@
-//! This module defines the [`Witness`] struct that implements deserialization of circom witness files via [`Witness::from_reader`].
+//! This module defines the [`Witness`] struct that implements deserialization of Circom witness files via [`Witness::from_reader`].
 
 use std::io;
 
@@ -33,12 +33,12 @@ pub enum WitnessParserError {
     /// Error describing that the ScalarField from curve does not match in witness file
     #[error("ScalarField from curve does not match in witness file")]
     WrongScalarField,
-    /// Error during reading circom file header
+    /// Error during reading Circom file header
     #[error(transparent)]
     WrongHeader(#[from] InvalidHeaderError),
 }
 
-/// Represents a witness in the format defined by circom. Implements [`Witness::from_reader`] to deserialize a witness from a reader.
+/// Represents a witness in the format defined by Circom. Implements [`Witness::from_reader`] to deserialize a witness from a reader.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Witness<F> {
     /// The values of the witness.

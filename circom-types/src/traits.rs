@@ -1,4 +1,4 @@
-//! Traits for converting circom file formats to arkworks types.
+//! Traits for converting Circom file formats to arkworks types.
 
 use std::io::Read;
 
@@ -145,7 +145,7 @@ macro_rules! impl_serde_for_curve {
     };
 }
 
-/// Bridge trait to serialize and deserialize pairings contained in circom files into and from [`ark_ec::pairing::Pairing`] representation
+/// Bridge trait to serialize and deserialize pairings contained in Circom files into and from [`ark_ec::pairing::Pairing`] representation
 pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     /// Size of compressed element of G1 in bytes
     const G1_SERIALIZED_BYTE_SIZE_COMPRESSED: usize;
@@ -164,7 +164,7 @@ pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     const SCALAR_FIELD_BYTE_SIZE: usize;
     /// Size of element in BaseField
     const BASE_FIELD_BYTE_SIZE: usize;
-    /// Returns the name of the curve as defined in circom
+    /// Returns the name of the curve as defined in Circom
     fn get_circom_name() -> String;
     /// Deserializes element of G1 from bytes where the element is already in montgomery form (no montgomery reduction performed)
     /// Used in default multithreaded impl of g1_vec_from_reader, because `Read` cannot be shared across threads
@@ -230,7 +230,7 @@ pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     /// Deserializes an element of [`Pairing::ScalarField`] where the element is already in montgomery form (no montgomery reduction performed).
     fn fr_from_montgomery_reader(reader: impl Read) -> SerResult<Self::ScalarField>;
 
-    /// Deserializes an element of [`Pairing::ScalarField`] where the element is already in montgomery form BUT we still need to perform a montgomery reduction. This is necessary for the deserialization of circom's Zkey.
+    /// Deserializes an element of [`Pairing::ScalarField`] where the element is already in montgomery form BUT we still need to perform a montgomery reduction. This is necessary for the deserialization of Circom's Zkey.
     fn fr_from_reader_for_groth16_zkey(reader: impl Read) -> SerResult<Self::ScalarField>;
 
     /// Deserializes an element of [`Pairing::BaseField`] where the element is already in montgomery form (no montgomery reduction performed).

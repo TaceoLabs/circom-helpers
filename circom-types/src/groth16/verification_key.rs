@@ -6,7 +6,7 @@ use ark_groth16::VerifyingKey;
 use ark_serde_compat::CanonicalJsonSerialize;
 use serde::{Deserialize, Serialize};
 
-/// Represents a verification key in JSON format that was created by circom. Supports de/serialization using [`serde`].
+/// Represents a verification key in JSON format that was created by Circom. Supports de/serialization using [`serde`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerificationKey<P: Pairing + CanonicalJsonSerialize> {
     /// The protocol used to generate the proof (always `"groth16"`)

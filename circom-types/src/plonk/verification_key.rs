@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::traits::CircomArkworksPairingBridge;
 
-/// Represents a verification key in JSON format that was created by circom. Supports de/serialization using [`serde`].
+/// Represents a verification key in JSON format that was created by Circom. Supports de/serialization using [`serde`].
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerificationKey<P: Pairing + CircomArkworksPairingBridge> {
     /// The protocol (Plonk in this case)

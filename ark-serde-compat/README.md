@@ -4,7 +4,7 @@ Various serialization helpers for serializing `arkworks` types as strings using 
 
 ## Overview
 
-This crate provides serde-compatible serialization and deserialization functions for arkworks-rs types, designed to work seamlessly with circom's JSON format expectations. Field elements are serialized as decimal strings, and curve points are serialized as arrays of coordinate strings.
+This crate provides serde-compatible serialization and deserialization functions for arkworks-rs types, designed to work seamlessly with Circom's JSON format expectations. Field elements are serialized as decimal strings, and curve points are serialized as arrays of coordinate strings.
 
 ## Features
 

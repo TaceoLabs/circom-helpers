@@ -24,7 +24,7 @@
 //IN CONNECTION WITH THE SOFTWARE O THE USE OR OTHER
 //DEALINGS IN THE SOFTWARE.R
 
-//! This module provides the [`R1CS`] type which implements [`R1CS::from_reader`] for parsing the R1CS file format used by circom.
+//! This module provides the [`R1CS`] type which implements [`R1CS::from_reader`] for parsing the R1CS file format used by Circom.
 //! Inspired by <https://github.com/arkworks-rs/circom-compat/blob/170b10fc9ed182b5f72ecf379033dda023d0bf07/src/circom/r1cs_reader.rs>
 use ark_ff::PrimeField;
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -70,7 +70,7 @@ pub enum R1CSParserError {
     WrongScalarField,
 }
 
-/// Struct representing a R1CS file produced by circom that implements [`R1CS::from_reader`] for parsing the R1CS file format used by circom.
+/// Struct representing a R1CS file produced by Circom that implements [`R1CS::from_reader`] for parsing the R1CS file format used by Circom.
 #[derive(Clone, Debug)]
 pub struct R1CS<P: Pairing> {
     /// Number of public inputs

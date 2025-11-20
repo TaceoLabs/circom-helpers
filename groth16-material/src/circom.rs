@@ -66,7 +66,7 @@ impl From<ark_serialize::SerializationError> for ZkeyError {
     }
 }
 
-/// Core material for generating groth-16 zero-knowledge proofs based on circom. Currently we only support `bn254` material, because the underlying witness extension library only support `bn254`.
+/// Core material for generating groth-16 zero-knowledge proofs based on Circom. Currently we only support `bn254` material, because the underlying witness extension library only support `bn254`.
 ///
 /// Holds the proving keys, constraint matrices and graphs for the witness extension.
 /// Provides methods to:

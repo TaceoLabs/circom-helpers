@@ -3,7 +3,7 @@ use crate::traits::CircomArkworksPairingBridge;
 use ark_ec::pairing::Pairing;
 use serde::{Deserialize, Serialize};
 
-/// Represents a Groth16 proof in JSON format that was created by circom. Supports de/serialization using [`serde`].
+/// Represents a Groth16 proof in JSON format that was created by Circom. Supports de/serialization using [`serde`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Proof<P: Pairing + CircomArkworksPairingBridge> {
     /// Proof element A (or 1) in G1

@@ -1,10 +1,10 @@
-//! This module defines the [`PlonkProof`] in circom's format. It implements de/serialization using [`serde`].
+//! This module defines the [`PlonkProof`] in Circom's format. It implements de/serialization using [`serde`].
 
 use crate::traits::CircomArkworksPairingBridge;
 use ark_ec::pairing::Pairing;
 use serde::{Deserialize, Serialize};
 
-/// Represents a Plonk proof that was created by circom. Supports de/serialization using [`serde`].
+/// Represents a Plonk proof that was created by Circom. Supports de/serialization using [`serde`].
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlonkProof<P: Pairing + CircomArkworksPairingBridge> {
     /// Proof element A (or 1)

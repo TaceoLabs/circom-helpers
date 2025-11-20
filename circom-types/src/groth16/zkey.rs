@@ -24,7 +24,7 @@
 //IN CONNECTION WITH THE SOFTWARE O THE USE OR OTHER
 //DEALINGS IN THE SOFTWARE.R
 
-//! This module defines the [`Zkey`] struct that implements deserialization of circom zkey files via [`Zkey::from_reader`].
+//! This module defines the [`Zkey`] struct that implements deserialization of Circom zkey files via [`Zkey::from_reader`].
 //! Inspired by <https://github.com/arkworks-rs/circom-compat/blob/170b10fc9ed182b5f72ecf379033dda023d0bf07/src/zkey.rs>
 use ark_ec::pairing::Pairing;
 use ark_ff::PrimeField;
@@ -45,7 +45,7 @@ macro_rules! u32_to_usize {
         usize::try_from($x).expect("u32 fits into usize")
     };
 }
-/// Represents a zkey in the format defined by circom. Implements [`Zkey::from_reader`] to deserialize a zkey from a reader.
+/// Represents a zkey in the format defined by Circom. Implements [`Zkey::from_reader`] to deserialize a zkey from a reader.
 #[derive(Clone)]
 pub struct Zkey<P: Pairing> {
     /// amount of public inputs
