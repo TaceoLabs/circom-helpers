@@ -208,16 +208,6 @@ impl CircomGroth16MaterialBuilder {
     }
 
     /// Loads the Groth16 material from `.zkey` and graph files and verifies their fingerprints if provided.
-    ///
-    /// # Arguments
-    ///
-    /// * `zkey_path` - Path to the `.zkey` file
-    /// * `fingerprint` - Optional SHA-256 fingerprint to validate the `.zkey` file
-    /// * `graph_path` - Path to the circuit graph file
-    ///
-    /// # Errors
-    ///
-    /// Returns a [`ZkeyError`] if the file cannot be read or the fingerprint does not match the expected value.
     pub fn build_from_paths(
         self,
         zkey_path: impl AsRef<Path>,
@@ -229,10 +219,6 @@ impl CircomGroth16MaterialBuilder {
     }
 
     /// Builds Groth16 material directly from `.zkey` and graph readers.
-    ///
-    /// # Errors
-    ///
-    /// Returns a [`ZkeyError::ZkeyFingerprintMismatch`] if any embedded fingerprint check fails.
     pub fn build_from_reader(
         self,
         mut zkey_reader: impl std::io::Read,
@@ -246,10 +232,6 @@ impl CircomGroth16MaterialBuilder {
     }
 
     /// Builds Groth16 material directly from in-memory `.zkey` and graph bytes.
-    ///
-    /// # Errors
-    ///
-    /// Returns a [`ZkeyError::ZkeyFingerprintMismatch`] if any embedded fingerprint check fails.
     pub fn build_from_bytes(
         self,
         zkey_bytes: &[u8],
@@ -285,12 +267,6 @@ impl CircomGroth16MaterialBuilder {
     }
 
     /// Downloads `.zkey` and graph files from the provided URLs and builds the Groth16 material.
-    ///
-    /// # Errors
-    ///
-    /// Returns a [`ZkeyError::IoError`] if fetching either URL fails, or a
-    /// [`ZkeyError::ZkeyFingerprintMismatch`] if the downloaded bytes do not
-    /// match the expected fingerprints.
     #[cfg(feature = "reqwest")]
     pub async fn build_from_urls(
         self,
@@ -318,6 +294,7 @@ impl CircomGroth16Material {
     pub fn zkey(&self) -> &ArkZkey<Bn254> {
         &self.zkey
     }
+
     /// Computes a witness vector from a circuit graph and inputs.
     pub fn generate_witness(
         &self,
@@ -334,6 +311,7 @@ impl CircomGroth16Material {
         .collect::<Vec<_>>();
         Ok(witness)
     }
+
     /// Generates a Groth16 proof from a witness and verifies it.
     ///
     /// Doesn't verify the proof internally.

@@ -5,6 +5,7 @@ use ruint::aliases::U256;
 pub trait ProofInput {
     fn prepare_input(&self) -> HashMap<String, Vec<U256>>;
 }
+
 #[inline(always)]
 pub fn fq_to_u256_vec(f: ark_babyjubjub::Fq) -> Vec<U256> {
     vec![f.into()]
