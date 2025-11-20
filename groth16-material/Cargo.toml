@@ -1,5 +1,5 @@
 [package]
-name = "groth16-material"
+name = "taceo-groth16-material"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
