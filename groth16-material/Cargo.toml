@@ -3,10 +3,12 @@ name = "groth16-material"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
-repository.workspace = true
-license.workspace = true
 description = "A collection of utilities for generating witnesses and proofs for Groth16 circuits. Supports Circom circuits for now."
 readme = "./README.md"
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords = ["circom", "groth16", "zero-knowledge", "zk"]
 
 [package.metadata.cargo-all-features]
 skip_feature_sets = [
@@ -36,11 +38,7 @@ tracing = { workspace = true }
 
 [features]
 default = ["circom"]
-circom = [
-  "dep:ark-serialize",
-  "dep:circom-witness-rs",
-  "dep:ruint"
-]
+circom = ["dep:ark-serialize", "dep:circom-witness-rs", "dep:ruint"]
 full = ["circom", "noir"]
 noir = []
 reqwest = ["dep:reqwest"]
