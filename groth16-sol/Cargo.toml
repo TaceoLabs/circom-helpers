@@ -6,6 +6,7 @@ rust-version.workspace = true
 homepage.workspace = true
 repository.workspace = true
 license.workspace = true
+exclude = ["/data"]
 
 [dependencies]
 ark-bn254.workspace = true
