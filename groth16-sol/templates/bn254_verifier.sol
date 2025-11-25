@@ -1,8 +1,9 @@
-{{- $numPublic := sub (len .Vk.G1.K) 1 }}
-{{- $numWitness := $numPublic }}
+{%- let numPublic = vk.gamma_abc_g1.len() - 1 -%}
+{%- let numCommitments = 0 -%}
+{%- let numWitness = numPublic - numCommitments %}
 // SPDX-License-Identifier: MIT
 
-pragma solidity {{ .Cfg.PragmaVersion }};
+pragma solidity {{ config.pragma_version }};
 
 /// @title Groth16 verifier template.
 /// @author Remco Bloemen
@@ -54,37 +55,40 @@ contract Verifier {
     uint256 constant EXP_SQRT_FP = 0xC19139CB84C680A6E14116DA060561765E05AA45A1C72A34F082305B61F3F52; // (P + 1) / 4;
 
     // Groth16 alpha point in G1
-    uint256 constant ALPHA_X = {{ (fpstr .Vk.G1.Alpha.X) }};
-    uint256 constant ALPHA_Y = {{ (fpstr .Vk.G1.Alpha.Y) }};
+    uint256 constant ALPHA_X = {{ vk.alpha_g1.x().unwrap() }};
+    uint256 constant ALPHA_Y = {{ vk.alpha_g1.y().unwrap() }};
 
     // Groth16 beta point in G2 in powers of i
-    uint256 constant BETA_NEG_X_0 = {{ (fpstr .Vk.G2.Beta.X.A0) }};
-    uint256 constant BETA_NEG_X_1 = {{ (fpstr .Vk.G2.Beta.X.A1) }};
-    uint256 constant BETA_NEG_Y_0 = {{ (fpstr .Vk.G2.Beta.Y.A0) }};
-    uint256 constant BETA_NEG_Y_1 = {{ (fpstr .Vk.G2.Beta.Y.A1) }};
+    {% let beta_neg = -vk.beta_g2 -%}
+    uint256 constant BETA_NEG_X_0 = {{ beta_neg.x().unwrap().c0 }};
+    uint256 constant BETA_NEG_X_1 = {{ beta_neg.x().unwrap().c1 }};
+    uint256 constant BETA_NEG_Y_0 = {{ beta_neg.y().unwrap().c0 }};
+    uint256 constant BETA_NEG_Y_1 = {{ beta_neg.y().unwrap().c1 }};
 
     // Groth16 gamma point in G2 in powers of i
-    uint256 constant GAMMA_NEG_X_0 = {{ (fpstr .Vk.G2.Gamma.X.A0) }};
-    uint256 constant GAMMA_NEG_X_1 = {{ (fpstr .Vk.G2.Gamma.X.A1) }};
-    uint256 constant GAMMA_NEG_Y_0 = {{ (fpstr .Vk.G2.Gamma.Y.A0) }};
-    uint256 constant GAMMA_NEG_Y_1 = {{ (fpstr .Vk.G2.Gamma.Y.A1) }};
+    {% let gamma_neg = -vk.gamma_g2 -%}
+    uint256 constant GAMMA_NEG_X_0 = {{ gamma_neg.x().unwrap().c0 }};
+    uint256 constant GAMMA_NEG_X_1 = {{ gamma_neg.x().unwrap().c1 }};
+    uint256 constant GAMMA_NEG_Y_0 = {{ gamma_neg.y().unwrap().c0 }};
+    uint256 constant GAMMA_NEG_Y_1 = {{ gamma_neg.y().unwrap().c1 }};
 
     // Groth16 delta point in G2 in powers of i
-    uint256 constant DELTA_NEG_X_0 = {{ (fpstr .Vk.G2.Delta.X.A0) }};
-    uint256 constant DELTA_NEG_X_1 = {{ (fpstr .Vk.G2.Delta.X.A1) }};
-    uint256 constant DELTA_NEG_Y_0 = {{ (fpstr .Vk.G2.Delta.Y.A0) }};
-    uint256 constant DELTA_NEG_Y_1 = {{ (fpstr .Vk.G2.Delta.Y.A1) }};
+    {% let delta_neg = -vk.delta_g2 -%}
+    uint256 constant DELTA_NEG_X_0 = {{ delta_neg.x().unwrap().c0 }};
+    uint256 constant DELTA_NEG_X_1 = {{ delta_neg.x().unwrap().c1 }};
+    uint256 constant DELTA_NEG_Y_0 = {{ delta_neg.y().unwrap().c0 }};
+    uint256 constant DELTA_NEG_Y_1 = {{ delta_neg.y().unwrap().c1 }};
 
     // Constant and public input points
-    {{- $k0 := index .Vk.G1.K 0}}
-    uint256 constant CONSTANT_X = {{ (fpstr $k0.X) }};
-    uint256 constant CONSTANT_Y = {{ (fpstr $k0.Y) }};
-    {{- range $i, $ki := .Vk.G1.K }}
-        {{- if gt $i 0 }}
-    uint256 constant PUB_{{sub $i 1}}_X = {{ (fpstr $ki.X) }};
-    uint256 constant PUB_{{sub $i 1}}_Y = {{ (fpstr $ki.Y) }};
-        {{- end }}
-    {{- end }}
+    {% let k0 = vk.gamma_abc_g1[0] -%}
+    uint256 constant CONSTANT_X = {{ k0.x().unwrap().to_string() }};
+    uint256 constant CONSTANT_Y = {{ k0.y().unwrap().to_string() }};
+    {%- for ki in vk.gamma_abc_g1 -%}
+        {%- if loop.index0 > 0 %}
+    uint256 constant PUB_{{loop.index0 - 1}}_X = {{ ki.x().unwrap().to_string() }};
+    uint256 constant PUB_{{loop.index0 - 1}}_Y = {{ ki.y().unwrap().to_string() }};
+        {%- endif -%}
+    {%- endfor %}
 
     /// Negation in Fp.
     /// @notice Returns a number x such that a + x = 0 in Fp.
@@ -361,7 +365,7 @@ contract Verifier {
     /// @param input The public inputs. These are elements of the scalar field Fr.
     /// @return x The X coordinate of the resulting G1 point.
     /// @return y The Y coordinate of the resulting G1 point.
-    function publicInputMSM(uint256[{{$numWitness}}] calldata input)
+    function publicInputMSM(uint256[{{ numWitness }}] calldata input)
     internal view returns (uint256 x, uint256 y) {
         // Note: The ECMUL precompile does not reject unreduced values, so we check this.
         // Note: Unrolling this loop does not cost much extra in code-size, the bulk of the
@@ -378,23 +382,19 @@ contract Verifier {
             let s
             mstore(f, CONSTANT_X)
             mstore(add(f, 0x20), CONSTANT_Y)
-            {{- range $i := intRange $numPublic }}
-            mstore(g, PUB_{{$i}}_X)
-            mstore(add(g, 0x20), PUB_{{$i}}_Y)
-            {{- if eq $i 0 }}
+            {%- for i in (0..numPublic) %}
+            mstore(g, PUB_{{ loop.index0 }}_X)
+            mstore(add(g, 0x20), PUB_{{ loop.index0 }}_Y)
+            {% if loop.index0 == 0 -%}
             s :=  calldataload(input)
-            {{- else if lt $i $numWitness }}
-            s :=  calldataload(add(input, {{mul $i 0x20}}))
-            {{- else if eq $i $numWitness }}
-            s := mload(publicCommitments)
-            {{- else}}
-            s := mload(add(publicCommitments, {{mul 0x20 (sub $i $numWitness)}}))
-            {{- end }}
+            {% elif loop.index0 < numWitness -%}
+            s :=  calldataload(add(input, {{ loop.index0 * 0x20}}))
+            {% endif -%}
             mstore(add(g, 0x40), s)
             success := and(success, lt(s, R))
             success := and(success, staticcall(gas(), PRECOMPILE_MUL, g, 0x60, g, 0x40))
             success := and(success, staticcall(gas(), PRECOMPILE_ADD, f, 0x80, f, 0x40))
-            {{- end }}
+            {%- endfor %}
 
             x := mload(f)
             y := mload(add(f, 0x20))
@@ -431,7 +431,7 @@ contract Verifier {
     /// Elements must be reduced.
     function verifyCompressedProof(
         uint256[4] calldata compressedProof,
-        uint256[{{$numWitness}}] calldata input
+        uint256[{{ numWitness }}] calldata input
     ) public view {
         uint256[24] memory pairings;
 
@@ -498,13 +498,12 @@ contract Verifier {
     /// Elements must be reduced.
     function verifyProof(
         uint256[8] calldata proof,
-        uint256[{{$numWitness}}] calldata input
+        uint256[{{ numWitness }}] calldata input
     ) public view {
         (uint256 x, uint256 y) = publicInputMSM(input);
 
         // Note: The precompile expects the F2 coefficients in big-endian order.
         // Note: The pairing precompile rejects unreduced values, so we won't check that here.
-
         bool success;
         assembly ("memory-safe") {
             let f := mload(0x40) // Free memory pointer.
