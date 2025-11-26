@@ -48,7 +48,7 @@ mod bn254_tests {
     }
 
     #[test]
-    fn test_json_cbor() {
+    fn test_human_and_non_human_readable() {
         let mut rng = rand::thread_rng();
         let should = Serializable::rand(&mut rng);
         let json_encoded = serde_json::to_vec(&should).expect("can serialize json");
@@ -124,7 +124,7 @@ mod bls12_381_tests {
     }
 
     #[test]
-    fn test_json_cbor() {
+    fn test_human_and_non_human_readable() {
         let mut rng = rand::thread_rng();
         let should = Serializable::rand(&mut rng);
         let json_encoded = serde_json::to_vec(&should).expect("can serialize json");
@@ -196,7 +196,7 @@ mod babyjubjub_test {
     }
 
     #[test]
-    fn test_json_cbor() {
+    fn test_human_and_non_human_readable() {
         let mut rng = rand::thread_rng();
         let should = Serializable::rand(&mut rng);
         let json_encoded = serde_json::to_vec(&should).expect("can serialize json");
