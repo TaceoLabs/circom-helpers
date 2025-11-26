@@ -15,10 +15,18 @@ ark-bls12-381 = { workspace = true, optional = true }
 ark-bn254 = { workspace = true, optional = true }
 ark-ec.workspace = true
 ark-ff.workspace = true
+ark-serialize = { workspace = true }
 serde.workspace = true
+
+[dev-dependencies]
+bincode = { workspace = true, features = ["serde"] }
+ciborium.workspace = true
+rand.workspace = true
+serde_json.workspace = true
 
 [features]
 default = []
 babyjubjub = ["dep:ark-babyjubjub"]
 bls12-381 = ["dep:ark-bls12-381"]
 bn254 = ["dep:ark-bn254"]
+full = ["babyjubjub", "bls12-381", "bn254"]

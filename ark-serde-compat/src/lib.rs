@@ -56,7 +56,16 @@ use ark_ff::{
     CubicExtConfig, CubicExtField, Field, Fp12Config, Fp12ConfigWrapper, PrimeField, QuadExtConfig,
     QuadExtField, Zero,
 };
-use serde::{Serializer, de, ser::SerializeSeq as _};
+use ark_serialize::{CanonicalDeserialize as _, CanonicalSerialize as _, Compress};
+use serde::ser::Error;
+use serde::{
+    Serializer,
+    de::{self},
+    ser::SerializeSeq as _,
+};
+
+#[cfg(test)]
+mod test;
 
 #[cfg(any(feature = "bn254", feature = "bls12-381"))]
 mod impl_macro;
@@ -167,7 +176,14 @@ pub enum CheckElement {
 /// }
 /// ```
 pub fn serialize_f<S: Serializer>(p: &impl PrimeField, ser: S) -> Result<S::Ok, S::Error> {
-    ser.serialize_str(&p.to_string())
+    if ser.is_human_readable() {
+        ser.serialize_str(&p.to_string())
+    } else {
+        let mut bytes = Vec::with_capacity(p.serialized_size(Compress::Yes));
+        p.serialize_compressed(&mut bytes)
+            .map_err(|_| S::Error::custom("cannot canonical serialize element"))?;
+        ser.serialize_bytes(&bytes)
+    }
 }
 
 /// Serialize a sequence of prime field elements as an array of decimal strings.
@@ -188,11 +204,18 @@ pub fn serialize_f<S: Serializer>(p: &impl PrimeField, ser: S) -> Result<S::Ok, 
 /// }
 /// ```
 pub fn serialize_f_seq<S: Serializer, F: PrimeField>(ps: &[F], ser: S) -> Result<S::Ok, S::Error> {
-    let mut seq = ser.serialize_seq(Some(ps.len()))?;
-    for p in ps {
-        seq.serialize_element(&p.to_string())?;
+    if ser.is_human_readable() {
+        let mut seq = ser.serialize_seq(Some(ps.len()))?;
+        for p in ps {
+            seq.serialize_element(&p.to_string())?;
+        }
+        seq.end()
+    } else {
+        let mut bytes = Vec::with_capacity(ps.serialized_size(Compress::Yes));
+        ps.serialize_compressed(&mut bytes)
+            .map_err(|_| S::Error::custom("cannot canonical serialize element"))?;
+        ser.serialize_bytes(&bytes)
     }
-    seq.end()
 }
 
 /// Deserialize a prime field element from a decimal string.
@@ -217,7 +240,12 @@ where
     D: de::Deserializer<'de>,
     F: PrimeField,
 {
-    deserializer.deserialize_str(PrimeFieldVisitor::<F>::default())
+    let visitor = PrimeFieldVisitor::<F>::default();
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_str(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize a sequence of prime field elements from an array of decimal strings.
@@ -242,9 +270,14 @@ where
     D: de::Deserializer<'de>,
     F: PrimeField,
 {
-    deserializer.deserialize_seq(PrimeFieldSeqVisitor::<F> {
+    let visitor = PrimeFieldSeqVisitor::<F> {
         phantom_data: PhantomData,
-    })
+    };
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Serialize a G1 affine point as an array of three coordinate strings.
@@ -258,12 +291,19 @@ pub fn serialize_g1<S: Serializer, F: Field>(
     p: &impl AffineRepr<BaseField = F>,
     ser: S,
 ) -> Result<S::Ok, S::Error> {
-    let strings = g1_to_strings_projective(p);
-    let mut seq = ser.serialize_seq(Some(strings.len()))?;
-    for ele in strings {
-        seq.serialize_element(&ele)?;
+    if ser.is_human_readable() {
+        let strings = g1_to_strings_projective(p);
+        let mut seq = ser.serialize_seq(Some(strings.len()))?;
+        for ele in strings {
+            seq.serialize_element(&ele)?;
+        }
+        seq.end()
+    } else {
+        let mut bytes = Vec::with_capacity(p.serialized_size(Compress::Yes));
+        p.serialize_compressed(&mut bytes)
+            .map_err(|_| S::Error::custom("cannot canonical serialize element"))?;
+        ser.serialize_bytes(&bytes)
     }
-    seq.end()
 }
 
 /// Serialize a G2 affine point as a 3×2 array of coordinate strings.
@@ -283,14 +323,21 @@ pub fn serialize_g2<F, S: Serializer>(
 where
     F: QuadExtConfig,
 {
-    let mut x_seq = ser.serialize_seq(Some(3))?;
-    let (x, y) = p
-        .xy()
-        .unwrap_or((QuadExtField::<F>::zero(), QuadExtField::<F>::zero()));
-    x_seq.serialize_element(&[x.c0.to_string(), x.c1.to_string()])?;
-    x_seq.serialize_element(&[y.c0.to_string(), y.c1.to_string()])?;
-    x_seq.serialize_element(&["1", "0"])?;
-    x_seq.end()
+    if ser.is_human_readable() {
+        let mut x_seq = ser.serialize_seq(Some(3))?;
+        let (x, y) = p
+            .xy()
+            .unwrap_or((QuadExtField::<F>::zero(), QuadExtField::<F>::zero()));
+        x_seq.serialize_element(&[x.c0.to_string(), x.c1.to_string()])?;
+        x_seq.serialize_element(&[y.c0.to_string(), y.c1.to_string()])?;
+        x_seq.serialize_element(&["1", "0"])?;
+        x_seq.end()
+    } else {
+        let mut bytes = Vec::with_capacity(p.serialized_size(Compress::Yes));
+        p.serialize_compressed(&mut bytes)
+            .map_err(|_| S::Error::custom("cannot canonical serialize element"))?;
+        ser.serialize_bytes(&bytes)
+    }
 }
 
 /// Serialize a target group (GT/Fq12) element as a 2×3×2 array of decimal strings.
@@ -312,28 +359,35 @@ pub fn serialize_gt<S: Serializer, T>(
 where
     T: Fp12Config,
 {
-    let a = p.c0;
-    let b = p.c1;
-    let aa = a.c0;
-    let ab = a.c1;
-    let ac = a.c2;
-    let ba = b.c0;
-    let bb = b.c1;
-    let bc = b.c2;
-    let a = [
-        [aa.c0.to_string(), aa.c1.to_string()],
-        [ab.c0.to_string(), ab.c1.to_string()],
-        [ac.c0.to_string(), ac.c1.to_string()],
-    ];
-    let b = [
-        [ba.c0.to_string(), ba.c1.to_string()],
-        [bb.c0.to_string(), bb.c1.to_string()],
-        [bc.c0.to_string(), bc.c1.to_string()],
-    ];
-    let mut seq = ser.serialize_seq(Some(2))?;
-    seq.serialize_element(&a)?;
-    seq.serialize_element(&b)?;
-    seq.end()
+    if ser.is_human_readable() {
+        let a = p.c0;
+        let b = p.c1;
+        let aa = a.c0;
+        let ab = a.c1;
+        let ac = a.c2;
+        let ba = b.c0;
+        let bb = b.c1;
+        let bc = b.c2;
+        let a = [
+            [aa.c0.to_string(), aa.c1.to_string()],
+            [ab.c0.to_string(), ab.c1.to_string()],
+            [ac.c0.to_string(), ac.c1.to_string()],
+        ];
+        let b = [
+            [ba.c0.to_string(), ba.c1.to_string()],
+            [bb.c0.to_string(), bb.c1.to_string()],
+            [bc.c0.to_string(), bc.c1.to_string()],
+        ];
+        let mut seq = ser.serialize_seq(Some(2))?;
+        seq.serialize_element(&a)?;
+        seq.serialize_element(&b)?;
+        seq.end()
+    } else {
+        let mut bytes = Vec::with_capacity(p.serialized_size(Compress::Yes));
+        p.serialize_compressed(&mut bytes)
+            .map_err(|_| S::Error::custom("cannot canonical serialize element"))?;
+        ser.serialize_bytes(&bytes)
+    }
 }
 
 /// Serialize a sequence of G1 affine points as an array of projective coordinate arrays.
@@ -347,11 +401,18 @@ pub fn serialize_g1_seq<S: Serializer, F: PrimeField>(
     ps: &[impl AffineRepr<BaseField = F>],
     ser: S,
 ) -> Result<S::Ok, S::Error> {
-    let mut seq = ser.serialize_seq(Some(ps.len()))?;
-    for p in ps {
-        seq.serialize_element(&g1_to_strings_projective(p))?;
+    if ser.is_human_readable() {
+        let mut seq = ser.serialize_seq(Some(ps.len()))?;
+        for p in ps {
+            seq.serialize_element(&g1_to_strings_projective(p))?;
+        }
+        seq.end()
+    } else {
+        let mut bytes = Vec::with_capacity(ps.serialized_size(Compress::Yes));
+        ps.serialize_compressed(&mut bytes)
+            .map_err(|_| S::Error::custom("cannot canonical serialize element"))?;
+        ser.serialize_bytes(&bytes)
     }
-    seq.end()
 }
 
 /// Converts a G1 affine point to projective coordinate strings.
@@ -395,7 +456,12 @@ where
     F: PrimeField,
     G1: SWCurveConfig<BaseField = F>,
 {
-    deserializer.deserialize_seq(G1Visitor::<true, _, _>(PhantomData))
+    let visitor = G1Visitor::<true, _, _>(PhantomData);
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize a G1 affine point from projective coordinate strings without validation.
@@ -417,7 +483,12 @@ where
     F: PrimeField,
     G1: SWCurveConfig<BaseField = F>,
 {
-    deserializer.deserialize_seq(G1Visitor::<false, _, _>(PhantomData))
+    let visitor = G1Visitor::<false, _, _>(PhantomData);
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize a G2 affine point from projective coordinate strings with full validation.
@@ -440,7 +511,12 @@ where
     Q: QuadExtConfig<BaseField = F>,
     G2: SWCurveConfig<BaseField = QuadExtField<Q>>,
 {
-    deserializer.deserialize_seq(G2Visitor::<true, _, _, _>(PhantomData))
+    let visitor = G2Visitor::<true, _, _, _>(PhantomData);
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize a G2 affine point from projective coordinate strings without validation.
@@ -463,7 +539,12 @@ where
     Q: QuadExtConfig<BaseField = F>,
     G2: SWCurveConfig<BaseField = QuadExtField<Q>>,
 {
-    deserializer.deserialize_seq(G2Visitor::<false, _, _, _>(PhantomData))
+    let visitor = G2Visitor::<false, _, _, _>(PhantomData);
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 /// Deserialize a target group (GT/Fq12) element from its 2×3×2 decimal string representation.
 ///
@@ -487,7 +568,12 @@ where
     Fp6: CubicExtConfig<BaseField = QuadExtField<Fp2>>,
     Fp12: QuadExtConfig<BaseField = CubicExtField<Fp6>>,
 {
-    deserializer.deserialize_seq(GtVisitor(PhantomData))
+    let visitor = GtVisitor(PhantomData);
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize a sequence of G1 affine points from coordinate arrays with full validation.
@@ -509,7 +595,12 @@ where
     F: PrimeField,
     G1: SWCurveConfig<BaseField = F>,
 {
-    deserializer.deserialize_seq(G1SeqVisitor::<true, _, _>(PhantomData))
+    let visitor = G1SeqVisitor::<true, _, _>(PhantomData);
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize a sequence of G1 affine points from coordinate arrays without validation.
@@ -533,7 +624,12 @@ where
     F: PrimeField,
     G1: SWCurveConfig<BaseField = F>,
 {
-    deserializer.deserialize_seq(G1SeqVisitor::<false, _, _>(PhantomData))
+    let visitor = G1SeqVisitor::<false, _, _>(PhantomData);
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 impl<'de, const CHECK: bool, G1, F> de::Visitor<'de> for G1Visitor<CHECK, F, G1>
@@ -545,6 +641,18 @@ where
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("a sequence of 3 strings, representing a projective point on G1")
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        if CHECK {
+            Self::Value::deserialize_compressed(v)
+        } else {
+            Self::Value::deserialize_compressed_unchecked(v)
+        }
+        .map_err(|err| de::Error::custom(err.to_string()))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -581,6 +689,18 @@ where
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter
             .write_str("a sequence of 3 sequences, representing a projective point on G2. The 3 sequences each consist of two strings")
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        if CHECK {
+            Self::Value::deserialize_compressed(v)
+        } else {
+            Self::Value::deserialize_compressed_unchecked(v)
+        }
+        .map_err(|err| de::Error::custom(err.to_string()))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -724,6 +844,13 @@ impl<'de, F: PrimeField> de::Visitor<'de> for PrimeFieldVisitor<F> {
         ))
     }
 
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Self::Value::deserialize_compressed(v).map_err(|err| de::Error::custom(err.to_string()))
+    }
+
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: de::Error,
@@ -740,6 +867,13 @@ impl<'de, F: PrimeField> de::Visitor<'de> for PrimeFieldSeqVisitor<F> {
             "a sequence of strings representing field elements in F_{}",
             F::MODULUS
         ))
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Self::Value::deserialize_compressed(v).map_err(|err| de::Error::custom(err.to_string()))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -767,6 +901,13 @@ where
         formatter.write_str(
                 "An element of Fp12 represented as string with radix 10. Must be a sequence of form [[[String; 2]; 3]; 2]."
             )
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Self::Value::deserialize_compressed(v).map_err(|err| de::Error::custom(err.to_string()))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -853,6 +994,18 @@ where
         formatter.write_str(
             "a sequence of elements representing projective points on G1, which in turn are sequences of three elements on the BaseField of the Curve.",
         )
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        if CHECK {
+            Self::Value::deserialize_compressed(v)
+        } else {
+            Self::Value::deserialize_compressed_unchecked(v)
+        }
+        .map_err(|err| de::Error::custom(err.to_string()))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>

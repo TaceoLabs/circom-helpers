@@ -7,6 +7,8 @@
 //! All field elements are serialized as decimal strings. Curve points are serialized
 //! in affine coordinates as arrays of two coordinate strings.
 
+use ark_serialize::{CanonicalDeserialize as _, CanonicalSerialize as _, Compress};
+use serde::ser::Error;
 use serde::{
     Serializer,
     de::{self},
@@ -48,11 +50,18 @@ pub fn serialize_affine<S: Serializer>(
     p: &ark_babyjubjub::EdwardsAffine,
     ser: S,
 ) -> Result<S::Ok, S::Error> {
-    let (x, y) = (p.x, p.y);
-    let mut x_seq = ser.serialize_seq(Some(2))?;
-    x_seq.serialize_element(&x.to_string())?;
-    x_seq.serialize_element(&y.to_string())?;
-    x_seq.end()
+    if ser.is_human_readable() {
+        let (x, y) = (p.x, p.y);
+        let mut x_seq = ser.serialize_seq(Some(2))?;
+        x_seq.serialize_element(&x.to_string())?;
+        x_seq.serialize_element(&y.to_string())?;
+        x_seq.end()
+    } else {
+        let mut bytes = Vec::with_capacity(p.serialized_size(Compress::Yes));
+        p.serialize_compressed(&mut bytes)
+            .map_err(|_| S::Error::custom("cannot canonical serialize element"))?;
+        ser.serialize_bytes(&bytes)
+    }
 }
 
 /// Serialize a sequence of BabyJubJub affine points as an array of coordinate pair arrays.
@@ -62,12 +71,19 @@ pub fn serialize_affine_seq<S: Serializer>(
     ps: &[ark_babyjubjub::EdwardsAffine],
     ser: S,
 ) -> Result<S::Ok, S::Error> {
-    let mut seq = ser.serialize_seq(Some(ps.len()))?;
-    for p in ps {
-        let (x, y) = (p.x, p.y);
-        seq.serialize_element(&[x.to_string(), y.to_string()])?;
+    if ser.is_human_readable() {
+        let mut seq = ser.serialize_seq(Some(ps.len()))?;
+        for p in ps {
+            let (x, y) = (p.x, p.y);
+            seq.serialize_element(&[x.to_string(), y.to_string()])?;
+        }
+        seq.end()
+    } else {
+        let mut bytes = Vec::with_capacity(ps.serialized_size(Compress::Yes));
+        ps.serialize_compressed(&mut bytes)
+            .map_err(|_| S::Error::custom("cannot canonical serialize element"))?;
+        ser.serialize_bytes(&bytes)
     }
-    seq.end()
 }
 
 /// Deserialize a BabyJubJub Fr (scalar field) element from a decimal string.
@@ -97,7 +113,7 @@ pub fn deserialize_fq_seq<'de, D>(deserializer: D) -> Result<Vec<ark_babyjubjub:
 where
     D: de::Deserializer<'de>,
 {
-    deserializer.deserialize_seq(BabyJubJubFqSeqVisitor)
+    super::deserialize_f_seq(deserializer)
 }
 
 /// Deserialize a BabyJubJub affine point from an array of two coordinate strings.
@@ -110,7 +126,12 @@ pub fn deserialize_affine<'de, D>(
 where
     D: de::Deserializer<'de>,
 {
-    deserializer.deserialize_seq(BabyJubJubAffineVisitor::<true>)
+    let visitor = BabyJubJubAffineVisitor::<true>;
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize a BabyJubJub affine point from an array of two coordinate strings without validation.
@@ -124,7 +145,12 @@ pub fn deserialize_affine_unchecked<'de, D>(
 where
     D: de::Deserializer<'de>,
 {
-    deserializer.deserialize_seq(BabyJubJubAffineVisitor::<false>)
+    let visitor = BabyJubJubAffineVisitor::<false>;
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize a sequence of BabyJubJub affine points from an array of coordinate pair arrays.
@@ -137,7 +163,12 @@ pub fn deserialize_affine_seq<'de, D>(
 where
     D: de::Deserializer<'de>,
 {
-    deserializer.deserialize_seq(BabyJubJubAffineSeqVisitor::<true> { size: None })
+    let visitor = BabyJubJubAffineSeqVisitor::<true> { size: None };
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize a sequence of BabyJubJub affine points from an array of coordinate pair arrays without validation.
@@ -151,7 +182,12 @@ pub fn deserialize_affine_seq_unchecked<'de, D>(
 where
     D: de::Deserializer<'de>,
 {
-    deserializer.deserialize_seq(BabyJubJubAffineSeqVisitor::<false> { size: None })
+    let visitor = BabyJubJubAffineSeqVisitor::<false> { size: None };
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
 }
 
 /// Deserialize am array of BabyJubJub affine points from an array of coordinate pair arrays.
@@ -165,10 +201,15 @@ pub fn deserialize_affine_array<'de, const LENGTH: usize, D>(
 where
     D: de::Deserializer<'de>,
 {
-    Ok(deserializer
-        .deserialize_seq(BabyJubJubAffineSeqVisitor::<true> { size: Some(LENGTH) })?
-        .try_into()
-        .expect("Works if not an error"))
+    let visitor = BabyJubJubAffineSeqVisitor::<true> { size: Some(LENGTH) };
+    let result = if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)?
+    } else {
+        deserializer.deserialize_bytes(visitor)?
+    }
+    .try_into()
+    .expect("Works if not an error");
+    Ok(result)
 }
 
 /// Deserialize am array of BabyJubJub affine points from an array of coordinate pair arrays.
@@ -183,10 +224,15 @@ pub fn deserialize_affine_array_unchecked<'de, const LENGTH: usize, D>(
 where
     D: de::Deserializer<'de>,
 {
-    Ok(deserializer
-        .deserialize_seq(BabyJubJubAffineSeqVisitor::<false> { size: Some(LENGTH) })?
-        .try_into()
-        .expect("Works if not an error"))
+    let visitor = BabyJubJubAffineSeqVisitor::<false> { size: Some(LENGTH) };
+    let result = if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)?
+    } else {
+        deserializer.deserialize_bytes(visitor)?
+    }
+    .try_into()
+    .expect("Works if not an error");
+    Ok(result)
 }
 
 fn affine_from_strings<const CHECK: bool>(
@@ -210,7 +256,6 @@ fn affine_from_strings<const CHECK: bool>(
     Ok(p)
 }
 
-struct BabyJubJubFqSeqVisitor;
 struct BabyJubJubAffineVisitor<const CHECK: bool>;
 struct BabyJubJubAffineSeqVisitor<const CHECK: bool> {
     size: Option<usize>,
@@ -221,6 +266,18 @@ impl<'de, const CHECK: bool> de::Visitor<'de> for BabyJubJubAffineVisitor<CHECK>
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("a sequence of 2 strings, representing a affine babyjubjub point")
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        if CHECK {
+            Self::Value::deserialize_compressed(v)
+        } else {
+            Self::Value::deserialize_compressed_unchecked(v)
+        }
+        .map_err(|err| de::Error::custom(err.to_string()))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -243,27 +300,6 @@ impl<'de, const CHECK: bool> de::Visitor<'de> for BabyJubJubAffineVisitor<CHECK>
     }
 }
 
-impl<'de> de::Visitor<'de> for BabyJubJubFqSeqVisitor {
-    type Value = Vec<ark_babyjubjub::Fq>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a sequence of elements representing babyjubjub Fq points.")
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: de::SeqAccess<'de>,
-    {
-        let mut values = vec![];
-        while let Some(v) = seq.next_element::<String>()? {
-            values.push(
-                ark_babyjubjub::Fq::from_str(&v).map_err(|_| de::Error::custom("Invalid data"))?,
-            );
-        }
-        Ok(values)
-    }
-}
-
 impl<'de, const CHECK: bool> de::Visitor<'de> for BabyJubJubAffineSeqVisitor<CHECK> {
     type Value = Vec<ark_babyjubjub::EdwardsAffine>;
 
@@ -277,6 +313,18 @@ impl<'de, const CHECK: bool> de::Visitor<'de> for BabyJubJubAffineSeqVisitor<CHE
                 "a sequence of elements representing babyjubjub affine points of variable length.",
             )
         }
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        if CHECK {
+            Self::Value::deserialize_compressed(v)
+        } else {
+            Self::Value::deserialize_compressed_unchecked(v)
+        }
+        .map_err(|err| de::Error::custom(err.to_string()))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
