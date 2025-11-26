@@ -4,13 +4,18 @@
 //!
 //! The solidity contract is based on the [Groth16 verifier implementation from
 //! gnark](https://github.com/Consensys/gnark/blob/9c9cf0deb462ea302af36872669457c36da0f160/backend/groth16/bn254/solidity.go),
-//! with minor modifications to be compatible with the [askama] crate.
+//! with minor modifications to be compatible with the [askama](docs.rs/askama) crate.
 //!
 //! # Example usage
+//! Generation of the Solidity verifier contract can be done as follows and requires the `template` feature to be enabled, which it is by default.
+//! If the features is enabled, the crate also re-exports `askama` for convenience.
+//!
 //! ```rust,no_run
+//! # #[cfg(feature = "template")]
+//! # {
 //! # fn load_verification_key() -> ark_groth16::VerifyingKey<ark_bn254::Bn254> { todo!() }
 //! use taceo_groth16_sol::{SolidityVerifierConfig, SolidityVerifierContext};
-//! use askama::Template;
+//! use taceo_groth16_sol::askama::Template;
 //!
 //! let config = SolidityVerifierConfig::default();
 //! let vk : ark_groth16::VerifyingKey<ark_bn254::Bn254> = load_verification_key();
@@ -23,6 +28,7 @@
 //! // You can also write the rendered contract to a file, see askama documentation for details
 //! let mut file = std::fs::File::create("Verifier.sol").unwrap();
 //! contract.write_into(&mut file).unwrap();
+//! # }
 //! ```
 //!
 //! # Preparing proofs
@@ -42,40 +48,77 @@ use alloy_primitives::U256;
 use ark_bn254::{Fq, G1Affine, G2Affine};
 use ark_ec::AffineRepr;
 use ark_ff::Field;
-use ark_groth16::{Proof, VerifyingKey};
-use askama::Template;
+use ark_groth16::Proof;
 
 /// Re-export askama for users of this crate
+#[cfg(feature = "template")]
 pub use askama;
+#[cfg(feature = "template")]
+pub use template::{SolidityVerifierConfig, SolidityVerifierContext};
 
-/// Context for generating a Solidity verifier contract for BN254 Groth16 proofs.
-/// The context is passed to `askama` for template rendering.
-/// Parameters:
-/// - `vk`: The [verifying key](ark_groth16::VerifyingKey) for the BN254 curve.
-/// - `config`: Configuration options for the Solidity verifier contract generation.
-#[derive(Debug, Clone, Template)]
-#[template(path = "../templates/bn254_verifier.sol", escape = "none")]
-pub struct SolidityVerifierContext {
-    /// The Groth16 verifying key
-    pub vk: VerifyingKey<ark_bn254::Bn254>,
-    /// Configuration options for the Solidity verifier contract generation
-    pub config: SolidityVerifierConfig,
-}
+#[cfg(feature = "template")]
+mod template {
+    use ark_ec::AffineRepr;
+    use ark_groth16::VerifyingKey;
+    use askama::Template;
 
-/// Configuration for the Solidity verifier contract generation.
-///
-/// Parameters:
-/// - `pragma_version`: The Solidity pragma version to use in the generated contract. Default is "^0.8.0".
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SolidityVerifierConfig {
-    /// The Solidity pragma version to use in the generated contract. Default is "^0.8.0".
-    pub pragma_version: String,
-}
+    /// Context for generating a Solidity verifier contract for BN254 Groth16 proofs.
+    /// The context is passed to `askama` for template rendering.
+    /// Parameters:
+    /// - `vk`: The [verifying key](ark_groth16::VerifyingKey) for the BN254 curve.
+    /// - `config`: Configuration options for the Solidity verifier contract generation.
+    #[cfg(feature = "template")]
+    #[derive(Debug, Clone, Template)]
+    #[template(path = "../templates/bn254_verifier.sol", escape = "none")]
+    pub struct SolidityVerifierContext {
+        /// The Groth16 verifying key
+        pub vk: VerifyingKey<ark_bn254::Bn254>,
+        /// Configuration options for the Solidity verifier contract generation
+        pub config: SolidityVerifierConfig,
+    }
 
-impl Default for SolidityVerifierConfig {
-    fn default() -> Self {
-        Self {
-            pragma_version: "^0.8.0".to_string(),
+    /// Configuration for the Solidity verifier contract generation.
+    ///
+    /// Parameters:
+    /// - `pragma_version`: The Solidity pragma version to use in the generated contract. Default is "^0.8.0".
+    #[cfg(feature = "template")]
+    #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+    pub struct SolidityVerifierConfig {
+        /// The Solidity pragma version to use in the generated contract. Default is "^0.8.0".
+        pub pragma_version: String,
+    }
+
+    #[cfg(feature = "template")]
+    impl Default for SolidityVerifierConfig {
+        fn default() -> Self {
+            Self {
+                pragma_version: "^0.8.0".to_string(),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use askama::Template;
+        use taceo_circom_types::groth16::VerificationKey;
+
+        const TEST_VK_BN254: &str = include_str!("../data/test_verification_key.json");
+        const TEST_GNARK_OUTPUT: &str = include_str!("../data/gnark_output.txt");
+
+        #[test]
+        fn test() {
+            let config = super::SolidityVerifierConfig::default();
+            let vk =
+                serde_json::from_str::<VerificationKey<ark_bn254::Bn254>>(TEST_VK_BN254).unwrap();
+            let contract = super::SolidityVerifierContext {
+                vk: vk.into(),
+                config,
+            };
+
+            let rendered = contract.render().unwrap();
+            // Askama supresses trailing newlines, so we add one for comparison
+            let rendered = format!("{}\n", rendered);
+            assert_eq!(rendered, TEST_GNARK_OUTPUT);
         }
     }
 }
@@ -180,28 +223,4 @@ pub fn prepare_uncompressed_proof(proof: &Proof<ark_bn254::Bn254>) -> [U256; 8] 
         cx.into(),
         cy.into(),
     ]
-}
-
-#[cfg(test)]
-mod tests {
-    use askama::Template;
-    use taceo_circom_types::groth16::VerificationKey;
-
-    const TEST_VK_BN254: &str = include_str!("../data/test_verification_key.json");
-    const TEST_GNARK_OUTPUT: &str = include_str!("../data/gnark_output.txt");
-
-    #[test]
-    fn test() {
-        let config = super::SolidityVerifierConfig::default();
-        let vk = serde_json::from_str::<VerificationKey<ark_bn254::Bn254>>(TEST_VK_BN254).unwrap();
-        let contract = super::SolidityVerifierContext {
-            vk: vk.into(),
-            config,
-        };
-
-        let rendered = contract.render().unwrap();
-        // Askama supresses trailing newlines, so we add one for comparison
-        let rendered = format!("{}\n", rendered);
-        assert_eq!(rendered, TEST_GNARK_OUTPUT);
-    }
 }
