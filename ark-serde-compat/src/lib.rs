@@ -1,12 +1,17 @@
 //! # ark-serde-compat
 //!
-//! Various serde compatibility implementations for arkworks-rs types, including serializing
-//! to strings for use in human-readable JSON. The design choices are heavily influenced to
-//! work with Circom.
+//! Various serde compatibility implementations for arkworks-rs types, supporting both
+//! human-readable and non-human readable serialization formats. The design choices are
+//! heavily influenced to work with Circom.
 //!
 //! This crate provides serialization and deserialization functions for arkworks types that
-//! are compatible with Circom's expected JSON format. Field elements are serialized as
-//! decimal strings, and curve points are serialized as arrays of coordinate strings.
+//! support:
+//!
+//! - **Human-readable formats** (e.g., JSON): Field elements are serialized as decimal strings,
+//!   and curve points are serialized as arrays of coordinate strings, compatible with Circom's
+//!   expected JSON format.
+//! - **Non-human readable formats** (e.g., bincode, CBOR): Uses `ark-serialize` with
+//!   **compressed mode** for efficient binary serialization.
 //!
 //! ## Features
 //!
@@ -16,7 +21,8 @@
 //!
 //! ## Usage
 //!
-//! Use the provided functions with serde's field attributes:
+//! Use the provided functions with serde's field attributes. The same attributes work for both
+//! human-readable (JSON) and non-human readable (binary) formats:
 //!
 //! ```ignore
 //! use serde::{Serialize, Deserialize};
@@ -28,6 +34,15 @@
 //!     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f")]
 //!     field: Fr,
 //! }
+//!
+//! // Example usage
+//! let my_struct = MyStruct { field: Fr::from(42u64) };
+//!
+//! // Works with JSON (human-readable, decimal strings)
+//! let json = serde_json::to_string(&my_struct)?;
+//!
+//! // Also works with bincode (non-human readable, compressed ark-serialize)
+//! let binary = bincode::serde::encode_to_vec(&my_struct, bincode::config::standard())?;
 //! ```
 //!
 //! For curve-specific helpers, use the appropriate module:
@@ -70,14 +85,16 @@ mod test;
 #[cfg(any(feature = "bn254", feature = "bls12-381"))]
 mod impl_macro;
 
-/// Trait providing canonical JSON serialization for pairing-friendly elliptic curves.
+/// Trait providing serialization for pairing-friendly elliptic curves.
 ///
 /// This trait defines a standard interface for serializing and deserializing pairing curve
-/// elements (G1, G2, GT) to and from human-readable JSON formats. It is implemented for
-/// specific pairing curves like BN254 and BLS12-381.
+/// elements (G1, G2, GT) to and from both human-readable and non-human readable formats.
+/// It is implemented for specific pairing curves like BN254 and BLS12-381.
 ///
-/// The serialization format uses decimal strings for field elements and arrays of strings
-/// for group elements to ensure compatibility with Circom and other tools.
+/// For human-readable formats (JSON), the serialization uses decimal strings for field
+/// elements and arrays of strings for group elements to ensure compatibility with Circom
+/// and other tools. For non-human readable formats (bincode, CBOR), it uses `ark-serialize`
+/// with compressed mode.
 pub trait CanonicalJsonSerialize: Pairing {
     /// Serializes a G1 affine point as an array of coordinate strings.
     fn serialize_g1<S: Serializer>(p: &Self::G1Affine, ser: S) -> Result<S::Ok, S::Error>;
@@ -158,10 +175,10 @@ pub enum CheckElement {
     No,
 }
 
-/// Serialize a prime field element as a decimal string.
+/// Serialize a prime field element.
 ///
-/// This function serializes any arkworks prime field element to its decimal string
-/// representation for use in JSON and other human-readable formats.
+/// For human-readable formats (JSON), serializes as a decimal string.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 ///
 /// # Example
 ///
@@ -186,10 +203,10 @@ pub fn serialize_f<S: Serializer>(p: &impl PrimeField, ser: S) -> Result<S::Ok, 
     }
 }
 
-/// Serialize a sequence of prime field elements as an array of decimal strings.
+/// Serialize a sequence of prime field elements.
 ///
-/// This function serializes a slice of arkworks prime field elements to an array where
-/// each element is represented as its decimal string.
+/// For human-readable formats (JSON), serializes as an array of decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 ///
 /// # Example
 ///
@@ -218,10 +235,10 @@ pub fn serialize_f_seq<S: Serializer, F: PrimeField>(ps: &[F], ser: S) -> Result
     }
 }
 
-/// Deserialize a prime field element from a decimal string.
+/// Deserialize a prime field element.
 ///
-/// This function deserializes a prime field element from its decimal string
-/// representation.
+/// For human-readable formats (JSON), deserializes from a decimal string.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 ///
 /// # Example
 ///
@@ -248,10 +265,10 @@ where
     }
 }
 
-/// Deserialize a sequence of prime field elements from an array of decimal strings.
+/// Deserialize a sequence of prime field elements.
 ///
-/// This function deserializes an array of decimal strings into a vector of prime field
-/// elements.
+/// For human-readable formats (JSON), deserializes from an array of decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 ///
 /// # Example
 ///
@@ -280,10 +297,11 @@ where
     }
 }
 
-/// Serialize a G1 affine point as an array of three coordinate strings.
+/// Serialize a G1 affine point.
 ///
-/// This function serializes an elliptic curve point in G1 to projective coordinates
-/// `[x, y, z]` as decimal strings. The point at infinity is represented as `["0", "1", "0"]`.
+/// For human-readable formats (JSON), serializes as an array of three projective coordinate
+/// strings `[x, y, z]`. The point at infinity is represented as `["0", "1", "0"]`.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 ///
 /// This is a generic function that works with any curve implementing `AffineRepr`.
 /// For curve-specific helpers, see the module functions like `bn254::serialize_g1`.
@@ -306,12 +324,13 @@ pub fn serialize_g1<S: Serializer, F: Field>(
     }
 }
 
-/// Serialize a G2 affine point as a 3×2 array of coordinate strings.
+/// Serialize a G2 affine point.
 ///
-/// This function serializes an elliptic curve point in G2 to projective coordinates
-/// `[[x0, x1], [y0, y1], [z0, z1]]` as decimal strings, where each coordinate is
-/// represented as a quadratic extension field element (two components). The point at
-/// infinity is represented as `[["0", "0"], ["1", "0"], ["0", "0"]]`.
+/// For human-readable formats (JSON), serializes as a 3×2 array of projective coordinate
+/// strings `[[x0, x1], [y0, y1], [z0, z1]]`, where each coordinate is represented as a
+/// quadratic extension field element (two components). The point at infinity is represented
+/// as `[["0", "0"], ["1", "0"], ["0", "0"]]`.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 ///
 /// This is a generic function that works with any curve implementing `AffineRepr` with
 /// a quadratic extension base field. For curve-specific helpers, see the module functions
@@ -340,15 +359,14 @@ where
     }
 }
 
-/// Serialize a target group (GT/Fq12) element as a 2×3×2 array of decimal strings.
+/// Serialize a target group (GT/Fq12) element.
 ///
-/// This function serializes an Fq12 extension field element (typically from a pairing
-/// operation) as a nested array structure. An Fq12 element is viewed as two Fq6
-/// components, each containing three Fq2 components, where each Fq2 is a pair of
-/// base field elements.
-///
-/// The resulting structure is `[[[a00, a01], [a10, a11], [a20, a21]], [[b00, b01], [b10, b11], [b20, b21]]]`,
+/// For human-readable formats (JSON), serializes as a 2×3×2 array of decimal strings.
+/// An Fq12 element is viewed as two Fq6 components, each containing three Fq2 components,
+/// where each Fq2 is a pair of base field elements. The resulting structure is
+/// `[[[a00, a01], [a10, a11], [a20, a21]], [[b00, b01], [b10, b11], [b20, b21]]]`,
 /// where each innermost pair represents an Fq2 element as decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
 /// like `bn254::serialize_gt`.
@@ -390,10 +408,12 @@ where
     }
 }
 
-/// Serialize a sequence of G1 affine points as an array of projective coordinate arrays.
+/// Serialize a sequence of G1 affine points.
 ///
-/// This function serializes a slice of G1 points where each point is represented as
-/// `[x, y, z]` with decimal strings. The point at infinity is represented as `["0", "1", "0"]`.
+/// For human-readable formats (JSON), serializes as an array of projective coordinate arrays
+/// where each point is represented as `[x, y, z]` with decimal strings. The point at infinity
+/// is represented as `["0", "1", "0"]`.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
 /// like `bn254::serialize_g1_seq`.
@@ -437,11 +457,13 @@ pub(crate) struct PrimeFieldSeqVisitor<F> {
     phantom_data: PhantomData<F>,
 }
 
-/// Deserialize a G1 affine point from projective coordinate strings with full validation.
+/// Deserialize a G1 affine point with full validation.
 ///
-/// This function deserializes a G1 point from `[x, y, z]` format as decimal strings.
+/// For human-readable formats (JSON), deserializes from `[x, y, z]` format as decimal strings.
+/// The point at infinity must be `["0", "1", "0"]`.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 /// Performs full validation including field element decoding, on-curve check, and
-/// subgroup membership verification. The point at infinity must be `["0", "1", "0"]`.
+/// subgroup membership verification.
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
 /// like `bn254::deserialize_g1`.
@@ -464,9 +486,10 @@ where
     }
 }
 
-/// Deserialize a G1 affine point from projective coordinate strings without validation.
+/// Deserialize a G1 affine point without validation.
 ///
-/// This function deserializes a G1 point from `[x, y, z]` format as decimal strings.
+/// For human-readable formats (JSON), deserializes from `[x, y, z]` format as decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 /// **Does not** perform validation checks (field canonical form, on-curve, subgroup membership),
 /// making it significantly faster but potentially unsafe.
 ///
@@ -491,11 +514,13 @@ where
     }
 }
 
-/// Deserialize a G2 affine point from projective coordinate strings with full validation.
+/// Deserialize a G2 affine point with full validation.
 ///
-/// This function deserializes a G2 point from `[[x0, x1], [y0, y1], [z0, z1]]` format
-/// as decimal strings. Performs full validation including field element decoding,
-/// on-curve check, and subgroup membership verification.
+/// For human-readable formats (JSON), deserializes from `[[x0, x1], [y0, y1], [z0, z1]]`
+/// format as decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
+/// Performs full validation including field element decoding, on-curve check, and
+/// subgroup membership verification.
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
 /// like `bn254::deserialize_g2`.
@@ -519,11 +544,13 @@ where
     }
 }
 
-/// Deserialize a G2 affine point from projective coordinate strings without validation.
+/// Deserialize a G2 affine point without validation.
 ///
-/// This function deserializes a G2 point from `[[x0, x1], [y0, y1], [z0, z1]]` format
-/// as decimal strings. **Does not** perform validation checks (field canonical form,
-/// on-curve, subgroup membership), making it significantly faster but potentially unsafe.
+/// For human-readable formats (JSON), deserializes from `[[x0, x1], [y0, y1], [z0, z1]]`
+/// format as decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
+/// **Does not** perform validation checks (field canonical form, on-curve, subgroup membership),
+/// making it significantly faster but potentially unsafe.
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
 /// like `bn254::deserialize_g2_unchecked`.
@@ -546,10 +573,11 @@ where
         deserializer.deserialize_bytes(visitor)
     }
 }
-/// Deserialize a target group (GT/Fq12) element from its 2×3×2 decimal string representation.
+/// Deserialize a target group (GT/Fq12) element.
 ///
-/// This function deserializes an Fq12 extension field element from the nested array
-/// structure `[[[a00, a01], [a10, a11], [a20, a21]], [[b00, b01], [b10, b11], [b20, b21]]]`.
+/// For human-readable formats (JSON), deserializes from the nested array structure
+/// `[[[a00, a01], [a10, a11], [a20, a21]], [[b00, b01], [b10, b11], [b20, b21]]]`.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
 /// Performs full validation of all component field elements.
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
@@ -576,11 +604,13 @@ where
     }
 }
 
-/// Deserialize a sequence of G1 affine points from coordinate arrays with full validation.
+/// Deserialize a sequence of G1 affine points with full validation.
 ///
-/// This function deserializes an array of G1 points where each point is in `[x, y, z]`
-/// projective format as decimal strings. Performs full validation for each point including
-/// field element decoding, on-curve check, and subgroup membership verification.
+/// For human-readable formats (JSON), deserializes from an array of G1 points where each
+/// point is in `[x, y, z]` projective format as decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
+/// Performs full validation for each point including field element decoding, on-curve check,
+/// and subgroup membership verification.
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
 /// like `bn254::deserialize_g1_seq`.
@@ -603,11 +633,13 @@ where
     }
 }
 
-/// Deserialize a sequence of G1 affine points from coordinate arrays without validation.
+/// Deserialize a sequence of G1 affine points without validation.
 ///
-/// This function deserializes an array of G1 points where each point is in `[x, y, z]`
-/// projective format as decimal strings. **Does not** perform validation checks for any
-/// point, making it significantly faster but potentially unsafe.
+/// For human-readable formats (JSON), deserializes from an array of G1 points where each
+/// point is in `[x, y, z]` projective format as decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
+/// **Does not** perform validation checks for any point, making it significantly faster but
+/// potentially unsafe.
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
 /// like `bn254::deserialize_g1_seq_unchecked`.
