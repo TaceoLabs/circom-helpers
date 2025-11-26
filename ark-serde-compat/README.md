@@ -84,6 +84,9 @@ struct MyStruct {
     field: Fr,
 }
 
+// Example usage
+let my_struct = MyStruct { field: Fr::from(42u64) };
+
 // Works with JSON
 let json = serde_json::to_string(&my_struct)?;
 

@@ -35,6 +35,9 @@
 //!     field: Fr,
 //! }
 //!
+//! // Example usage
+//! let my_struct = MyStruct { field: Fr::from(42u64) };
+//!
 //! // Works with JSON (human-readable, decimal strings)
 //! let json = serde_json::to_string(&my_struct)?;
 //!
