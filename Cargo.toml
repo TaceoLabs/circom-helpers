@@ -4,7 +4,7 @@ members = ["ark-serde-compat", "circom-types", "groth16", "groth16-material"]
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.91"
+rust-version = "1.90"
 homepage = "https://taceo.io/"
 repository = "https://github.com/TaceoLabs/circom-helpers"
 license = "MIT OR Apache-2.0"
