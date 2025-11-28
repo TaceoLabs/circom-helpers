@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.1.0...taceo-circom-types-v0.1.1)
+
+### 🐛 Bug Fixes
+
+
+- Specify missing dependencies for features in `circom-types` - ([3d4c8b5](https://github.com/TaceoLabs/circom-helpers/commit/3d4c8b543b4e87a205a5ea1ec61193a284e36dd4))
+
+
 ## [0.10.0](https://github.com/TaceoLabs/co-snarks/compare/circom-types-v0.9.0...circom-types-v0.10.0) (2025-11-06)
 
 
