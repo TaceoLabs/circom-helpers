@@ -60,7 +60,7 @@ bin = [
   "zkey"
 ]
 bls12-381 = ["ark-serde-compat/bls12-381", "dep:ark-bls12-381"]
-bn254 = ["ark-serde-compat/bn254", "dep:ark-bn254"]
+bn254 = ["ark-serde-compat/bn254", "dep:ark-bn254", "dep:ark-ec", "dep:ark-std"]
 full = ["bls12-381", "bn254", "full-groth16", "full-plonk"]
 full-groth16 = [
   "groth16",
@@ -85,7 +85,7 @@ parallel = ["dep:rayon"]
 plonk = []
 proof = ["dep:ark-ec", "dep:ark-groth16"]
 public-input = []
-r1cs = ["dep:ark-std"]
+r1cs = ["dep:ark-std", "dep:ark-ec"]
 verification-key = ["dep:ark-ec", "dep:ark-groth16"]
 witness = []
 zkey = ["dep:ark-ec", "dep:ark-groth16", "dep:ark-relations"]
