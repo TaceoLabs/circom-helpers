@@ -7,16 +7,17 @@ lint-bin:
 
 lint: lint-bin
     cargo fmt --all -- --check
-    cargo all-features clippy --workspace --tests --examples --benches --bins -q -- -D warnings
-    cargo clippy --no-default-features --workspace --tests --examples --benches --bins -q -- -D warnings
-    cargo clippy --features="bin" --workspace --tests --examples --benches --bins -q -- -D warnings
-    cargo clippy --features="bls12-381" --workspace --tests --examples --benches --bins -q -- -D warnings
-    cargo clippy --features="full-groth16,bls12-381" --workspace --tests --examples --benches --bins -q -- -D warnings
-    cargo clippy --features="full-plonk,bls12-381" --workspace --tests --examples --benches --bins -q -- -D warnings
-    cargo clippy --features="full" --workspace --tests --examples --benches --bins -q -- -D warnings
-    cargo clippy --features="full-groth16,full-plonk" --workspace --tests --examples --benches --bins -q -- -D warnings
-    cargo clippy --features="bin" --workspace --tests --examples --benches --bins -q -- -D warnings
-    RUSTDOCFLAGS='-D warnings' cargo all-features doc --workspace -q --no-deps
+    # We do these standalone checks to not have wrong passes due to workspace dependencies
+    # So we cd into the subcrate and run the checks as if it was standalone
+    just lint-subcrate circom-types
+    just lint-subcrate ark-serde-compat
+    just lint-subcrate groth16
+    just lint-subcrate groth16-material
+
+
+lint-subcrate SUBCRATE:
+    cd {{SUBCRATE}} && cargo all-features clippy --all-targets -q -- -D warnings
+    cd {{SUBCRATE}} && RUSTDOCFLAGS='-D warnings' cargo all-features doc -q --no-deps
 
 test:
     cargo test --all-features --all-targets
