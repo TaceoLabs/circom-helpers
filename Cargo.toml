@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["ark-serde-compat", "circom-types", "groth16", "groth16-material"]
+members = ["ark-serde-compat", "circom-types", "groth16", "groth16-material", "groth16-sol"]
 
 [workspace.package]
 edition = "2024"
