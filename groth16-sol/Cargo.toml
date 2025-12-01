@@ -13,7 +13,7 @@ exclude = ["/data"]
 
 [[bin]]
 name = "groth16-sol-utils"
-path = "src/bin/gnark-sol-extractor.rs"
+path = "src/bin/groth16-sol-utils.rs"
 required-features = ["bin"]
 
 [dependencies]
