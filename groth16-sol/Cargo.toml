@@ -12,7 +12,7 @@ license.workspace = true
 exclude = ["/data"]
 
 [[bin]]
-name = "gnark-sol-extractor"
+name = "groth16-sol-utils"
 path = "src/bin/gnark-sol-extractor.rs"
 required-features = ["bin"]
 
@@ -27,6 +27,7 @@ circom-types = { workspace = true, optional = true }
 clap = { workspace = true, features = ["derive"], optional = true }
 eyre.workspace = true
 ruint = { workspace = true, features = ["ark-ff-05"] }
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 circom-types.workspace = true
@@ -34,5 +35,5 @@ serde_json.workspace = true
 
 [features]
 default = ["template"]
-bin = ["circom-types", "clap", "template"]
+bin = ["circom-types", "clap", "serde_json", "template"]
 template = ["askama"]
