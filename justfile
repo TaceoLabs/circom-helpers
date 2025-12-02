@@ -13,6 +13,7 @@ lint: lint-bin
     just lint-subcrate ark-serde-compat
     just lint-subcrate groth16
     just lint-subcrate groth16-material
+    just lint-subcrate groth16-sol
 
 
 lint-subcrate SUBCRATE:
