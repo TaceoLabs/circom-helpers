@@ -29,10 +29,10 @@ struct GenerateCallConfig {
     /// Path to Circom public inputs.
     #[clap(long)]
     pub public: PathBuf,
-    /// Output of the Solidity file. Write to stdout if omitted.
+    /// Location of the output file. Write to stdout if omitted.
     #[clap(short, long)]
     pub output: Option<PathBuf>,
-    /// If set, will use uncompressed points. Compressed are better when interacting with L2.
+    /// If set, will use uncompressed points. Compressed can have lower overall verification gas costs on L2 chains.
     #[clap(long)]
     pub uncompressed: bool,
 }
