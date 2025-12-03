@@ -1,3 +1,5 @@
+//! # Groth16 Solidity generator
+//!
 //! A crate for generating Solidity verifier contracts for BN254 Groth16 proofs.
 //! This crate uses the `askama` templating engine to render Solidity code based on
 //! the provided verifying key and configuration options.
@@ -6,17 +8,15 @@
 //! gnark](https://github.com/Consensys/gnark/blob/9c9cf0deb462ea302af36872669457c36da0f160/backend/groth16/bn254/solidity.go),
 //! with minor modifications to be compatible with the [askama](docs.rs/askama) crate.
 //!
-//! # Example usage
+//! ## Example usage
 //! Generation of the Solidity verifier contract can be done as follows and requires the `template` feature to be enabled, which it is by default.
 //! If the features is enabled, the crate also re-exports `askama` for convenience.
-//!
 //! ```rust,no_run
 //! # #[cfg(feature = "template")]
 //! # {
 //! # fn load_verification_key() -> ark_groth16::VerifyingKey<ark_bn254::Bn254> { todo!() }
 //! use taceo_groth16_sol::{SolidityVerifierConfig, SolidityVerifierContext};
 //! use taceo_groth16_sol::askama::Template;
-//!
 //! let config = SolidityVerifierConfig::default();
 //! let vk : ark_groth16::VerifyingKey<ark_bn254::Bn254> = load_verification_key();
 //! let contract = SolidityVerifierContext {
@@ -30,12 +30,10 @@
 //! contract.write_into(&mut file).unwrap();
 //! # }
 //! ```
-//!
-//! # Preparing proofs
+//! ## Preparing proofs
 //! The crate also provides utility functions to prepare Groth16 proofs for verification in the generated contract.
 //! The proofs can be prepared in either compressed or uncompressed format, depending on the specific deployment of the verifier contract.
 //! See <https://2π.com/23/bn254-compression> for explanation of the point compression scheme used and explanation of the gas tradeoffs.
-//!
 //! ```rust,no_run
 //! # fn load_proof() -> ark_groth16::Proof<ark_bn254::Bn254> { todo!() }
 //! let proof: ark_groth16::Proof<ark_bn254::Bn254> = load_proof();
