@@ -1,6 +1,6 @@
 [package]
 name = "taceo-circom-types"
-version = "0.1.1"
+version = "0.1.2"
 edition.workspace = true
 rust-version.workspace = true
 description = "This crate provides a Rust representation of the types in the `Circom` ecosystem and ways to de/serialize them in a way that is compatible to the existing implementation in snarkjs."

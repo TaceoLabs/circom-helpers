@@ -1,6 +1,6 @@
 [package]
 name = "taceo-ark-serde-compat"
-version = "0.2.1"
+version = "0.3.0"
 edition.workspace = true
 rust-version.workspace = true
 description = "Various serde compatibility implementations for arkworks-rs types, supporting both human-readable formats (JSON with decimal strings) and non-human readable formats (binary serialization using ark-serialize with compressed mode). The design choices are heavily influenced to work with Circom."
