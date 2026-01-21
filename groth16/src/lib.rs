@@ -29,7 +29,6 @@ macro_rules! rayon_join5 {
     }};
 }
 pub(crate) use rayon_join3;
-pub(crate) use rayon_join5;
 
 /// Computes the roots of unity over the provided prime field. This method
 /// is equivalent with [Circom's implementation](https://github.com/iden3/ffjavascript/blob/337b881579107ab74d5b2094dbe1910e33da4484/src/wasm_field1.js).
