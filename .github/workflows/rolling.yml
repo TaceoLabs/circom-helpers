@@ -14,21 +14,6 @@ on:
     - cron: "7 7 * * *"
 
 jobs:
-  # https://twitter.com/mycoliza/status/1571295690063753218
-  nightly-test:
-    runs-on: ubuntu-latest
-    name: Nightly tests
-    steps:
-      - uses: actions/checkout@v6
-      - run: sudo apt-get install git-lfs
-      - name: Install nightly
-        uses: dtolnay/rust-toolchain@nightly
-      - name: cargo generate-lockfile
-        if: hashFiles('Cargo.lock') == ''
-        run: cargo generate-lockfile
-      - name: cargo test --locked
-        run: cargo test --profile=ci-dev --locked --all-features --all-targets --lib
-  # https://twitter.com/alcuadrado/status/1571291687837732873
   update:
     runs-on: ubuntu-latest
     name: ubuntu / beta / updated
@@ -46,7 +31,7 @@ jobs:
         run: cargo update
       - name: cargo test
         if: hashFiles('Cargo.lock') != ''
-        run: cargo test --profile=ci-dev --locked --all-features --all-targets --lib
+        run: cargo test --profile=ci-dev --locked --all-features --all-targets
         env:
           RUSTFLAGS: -D deprecated
   nightly-lints:
@@ -62,7 +47,6 @@ jobs:
         id: nightly-clippy
         run: |
           cargo clippy --workspace --tests --examples --benches -q --color=never 2> clippy.txt
-          sed -i '/^remote: Hello from chartered/d' clippy.txt
       - name: Build documentation
         id: nightly-doc
         run: |
