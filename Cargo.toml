@@ -21,7 +21,6 @@ ark-relations = { version = "0.5", default-features = false }
 ark-serde-compat = { package = "taceo-ark-serde-compat", path = "ark-serde-compat", version = "0.3", default-features = false }
 ark-serialize = { version = "0.5", default-features = false }
 ark-std = "0.5"
-bincode = "2.0.1"
 byteorder = "1.5"
 ciborium = "0.2.2"
 circom-types = { package = "taceo-circom-types", path = "circom-types", version = "0.1" }

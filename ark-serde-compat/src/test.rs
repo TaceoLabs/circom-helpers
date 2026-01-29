@@ -52,25 +52,15 @@ mod bn254_tests {
         let mut rng = rand::thread_rng();
         let should = Serializable::rand(&mut rng);
         let json_encoded = serde_json::to_vec(&should).expect("can serialize json");
-        let mut b = Vec::new();
-
-        ciborium::into_writer(&should, &mut b).expect("can cbor serialize");
-        let bincode_encoded = bincode::serde::encode_to_vec(&should, bincode::config::standard())
-            .expect("can serialize bytes");
-
-        let (bincode, _) = bincode::serde::borrow_decode_from_slice::<Serializable, _>(
-            &bincode_encoded,
-            bincode::config::standard(),
-        )
-        .expect("can deserialize bytes");
         let json =
             serde_json::from_slice::<Serializable>(&json_encoded).expect("can deserialize json");
 
+        let mut b = Vec::new();
+        ciborium::into_writer(&should, &mut b).expect("can cbor serialize");
         let ciborium: Serializable =
             ciborium::from_reader(b.as_slice()).expect("can deserialize cbor");
+        assert_eq!(should, json);
         assert_eq!(should, ciborium);
-        assert_eq!(ciborium, json);
-        assert_eq!(json, bincode);
     }
 }
 
@@ -128,25 +118,16 @@ mod bls12_381_tests {
         let mut rng = rand::thread_rng();
         let should = Serializable::rand(&mut rng);
         let json_encoded = serde_json::to_vec(&should).expect("can serialize json");
-        let mut b = Vec::new();
-
-        ciborium::into_writer(&should, &mut b).expect("can cbor serialize");
-        let bincode_encoded = bincode::serde::encode_to_vec(&should, bincode::config::standard())
-            .expect("can serialize bytes");
-
-        let (bincode, _) = bincode::serde::borrow_decode_from_slice::<Serializable, _>(
-            &bincode_encoded,
-            bincode::config::standard(),
-        )
-        .expect("can deserialize bytes");
         let json =
             serde_json::from_slice::<Serializable>(&json_encoded).expect("can deserialize json");
 
+        let mut b = Vec::new();
+        ciborium::into_writer(&should, &mut b).expect("can cbor serialize");
         let ciborium: Serializable =
             ciborium::from_reader(b.as_slice()).expect("can deserialize cbor");
+
         assert_eq!(should, ciborium);
-        assert_eq!(ciborium, json);
-        assert_eq!(json, bincode);
+        assert_eq!(should, json);
     }
 }
 
@@ -200,24 +181,14 @@ mod babyjubjub_test {
         let mut rng = rand::thread_rng();
         let should = Serializable::rand(&mut rng);
         let json_encoded = serde_json::to_vec(&should).expect("can serialize json");
-        let mut b = Vec::new();
-
-        ciborium::into_writer(&should, &mut b).expect("can cbor serialize");
-        let bincode_encoded = bincode::serde::encode_to_vec(&should, bincode::config::standard())
-            .expect("can serialize bytes");
-
-        let (bincode, _) = bincode::serde::borrow_decode_from_slice::<Serializable, _>(
-            &bincode_encoded,
-            bincode::config::standard(),
-        )
-        .expect("can deserialize bytes");
         let json =
             serde_json::from_slice::<Serializable>(&json_encoded).expect("can deserialize json");
 
+        let mut b = Vec::new();
+        ciborium::into_writer(&should, &mut b).expect("can cbor serialize");
         let ciborium: Serializable =
             ciborium::from_reader(b.as_slice()).expect("can deserialize cbor");
         assert_eq!(should, ciborium);
-        assert_eq!(ciborium, json);
-        assert_eq!(json, bincode);
+        assert_eq!(should, json);
     }
 }

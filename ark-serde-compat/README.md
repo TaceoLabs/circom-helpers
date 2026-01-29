@@ -93,8 +93,9 @@ let my_struct = MyStruct { field: Fr::from(42u64) };
 // Works with JSON
 let json = serde_json::to_string(&my_struct)?;
 
-// Also works with bincode (uses compressed ark-serialize)
-let binary = bincode::serde::encode_to_vec(&my_struct, bincode::config::standard())?;
+// Also works with CBOR (uses compressed ark-serialize)
+let mut b = Vec::new();
+ciborium::into_writer(&my_struct, &mut b)?;
 ```
 
 ## License
