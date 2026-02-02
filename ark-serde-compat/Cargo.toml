@@ -16,6 +16,7 @@ ark-bn254 = { workspace = true, optional = true }
 ark-ec.workspace = true
 ark-ff.workspace = true
 ark-serialize = { workspace = true }
+num-bigint.workspace = true
 serde.workspace = true
 
 [dev-dependencies]

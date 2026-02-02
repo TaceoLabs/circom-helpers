@@ -15,12 +15,14 @@ lint: lint-bin
     just lint-subcrate groth16-material
     just lint-subcrate groth16-sol
 
-
 lint-subcrate SUBCRATE:
-    cd {{SUBCRATE}} && cargo all-features clippy --all-targets -q -- -D warnings
-    cd {{SUBCRATE}} && RUSTDOCFLAGS='-D warnings' cargo all-features doc -q --no-deps
+    cd {{ SUBCRATE }} && cargo all-features clippy --all-targets -q -- -D warnings
+    cd {{ SUBCRATE }} && RUSTDOCFLAGS='-D warnings' cargo all-features doc -q --no-deps
 
 test:
     cargo test --all-features --all-targets
+
+test-subcrate SUBCRATE:
+    cd {{ SUBCRATE }} && cargo all-features test
 
 check-pr: lint test

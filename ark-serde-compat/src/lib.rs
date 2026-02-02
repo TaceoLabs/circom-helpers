@@ -1,6 +1,7 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 #![deny(missing_docs)]
-use std::marker::PhantomData;
+use std::str::FromStr;
+use std::{fmt, marker::PhantomData};
 
 use ark_ec::{
     AffineRepr, CurveGroup,
@@ -12,6 +13,7 @@ use ark_ff::{
     QuadExtField, Zero,
 };
 use ark_serialize::{CanonicalDeserialize as _, CanonicalSerialize as _, Compress};
+use num_bigint::Sign;
 use serde::ser::Error;
 use serde::{
     Serializer,
@@ -100,7 +102,14 @@ pub trait CanonicalJsonSerialize: Pairing {
 
 // Silence the error in case we use no features
 #[allow(unused)]
-pub(crate) struct SerdeCompatError;
+#[derive(Debug)]
+pub(crate) struct SerdeCompatError(&'static str);
+
+impl fmt::Display for SerdeCompatError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0)
+    }
+}
 
 /// Indicates whether we should check if deserialized are valid
 /// points on the curves.
@@ -175,7 +184,39 @@ pub fn serialize_f_seq<S: Serializer, F: PrimeField>(ps: &[F], ser: S) -> Result
     }
 }
 
-/// Deserialize a prime field element.
+/// Deserialize a prime field element. Allows negative values and is consistent with Circom's negative value parsing. Will return an error if element is larger than modulus.
+///
+/// This adds malleability as (p-1) and 1 result in the same value due to the implementation of Circom, where a number (-x) is defined as p - x, where p is the modulus of the prime field.
+///
+/// For human-readable formats (JSON), deserializes from a decimal string.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
+///
+/// # Example
+///
+/// ```ignore
+/// use serde::Deserialize;
+/// use ark_bn254::Fr;
+///
+/// #[derive(Deserialize)]
+/// struct MyStruct {
+///     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f_signed")]
+///     field: Fr,
+/// }
+/// ```
+pub fn deserialize_f_signed<'de, F, D>(deserializer: D) -> Result<F, D::Error>
+where
+    D: de::Deserializer<'de>,
+    F: PrimeField,
+{
+    let visitor = PrimeFieldVisitor::<false, F>::default();
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_str(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
+}
+
+/// Deserialize an unsigned prime field element. Returns an error if the value is negative or larger than modulus.
 ///
 /// For human-readable formats (JSON), deserializes from a decimal string.
 /// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
@@ -197,7 +238,7 @@ where
     D: de::Deserializer<'de>,
     F: PrimeField,
 {
-    let visitor = PrimeFieldVisitor::<F>::default();
+    let visitor = PrimeFieldVisitor::<true, F>::default();
     if deserializer.is_human_readable() {
         deserializer.deserialize_str(visitor)
     } else {
@@ -227,7 +268,42 @@ where
     D: de::Deserializer<'de>,
     F: PrimeField,
 {
-    let visitor = PrimeFieldSeqVisitor::<F> {
+    let visitor = PrimeFieldSeqVisitor::<true, F> {
+        phantom_data: PhantomData,
+    };
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
+}
+
+/// Deserialize a sequence of prime field elements. Allows negative values and is consistent with Circom's negative value parsing. Will return an error if element is larger than modulus.
+///
+/// This adds malleability as (p-1) and 1 result in the same value due to the implementation of Circom, where a number (-x) is defined as p - x, where p is the modulus of the prime field.
+///
+///
+/// For human-readable formats (JSON), deserializes from an array of decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
+///
+/// # Example
+///
+/// ```ignore
+/// use serde::Deserialize;
+/// use ark_bn254::Fr;
+///
+/// #[derive(Deserialize)]
+/// struct MyStruct {
+///     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f_seq_signed")]
+///     fields: Vec<Fr>,
+/// }
+/// ```
+pub fn deserialize_f_seq_signed<'de, D, F>(deserializer: D) -> Result<Vec<F>, D::Error>
+where
+    D: de::Deserializer<'de>,
+    F: PrimeField,
+{
+    let visitor = PrimeFieldSeqVisitor::<false, F> {
         phantom_data: PhantomData,
     };
     if deserializer.is_human_readable() {
@@ -388,12 +464,12 @@ fn g1_to_strings_projective(p: &impl AffineRepr) -> [String; 3] {
 }
 
 #[derive(Default)]
-pub(crate) struct PrimeFieldVisitor<F> {
+pub(crate) struct PrimeFieldVisitor<const UNSIGNED: bool, F> {
     phantom_data: PhantomData<F>,
 }
 
 #[derive(Default)]
-pub(crate) struct PrimeFieldSeqVisitor<F> {
+pub(crate) struct PrimeFieldSeqVisitor<const UNSIGNED: bool, F> {
     phantom_data: PhantomData<F>,
 }
 
@@ -644,8 +720,7 @@ where
         if seq.next_element::<String>()?.is_some() {
             Err(de::Error::invalid_length(4, &self))
         } else {
-            g1_from_strings_projective::<CHECK, _, _>(&x, &y, &z)
-                .map_err(|_| de::Error::custom("Invalid projective point on G1.".to_owned()))
+            g1_from_strings_projective::<CHECK, _, _>(&x, &y, &z).map_err(de::Error::custom)
         }
     }
 }
@@ -708,7 +783,7 @@ where
             )))
         } else {
             g2_from_strings_projective::<CHECK, _, _, _>(&x[0], &x[1], &y[0], &y[1], &z[0], &z[1])
-                .map_err(|_| de::Error::custom("Invalid projective point on G2.".to_owned()))
+                .map_err(de::Error::custom)
         }
     }
 }
@@ -726,18 +801,18 @@ where
     F: PrimeField,
     G1: SWCurveConfig<BaseField = F>,
 {
-    let x = F::from_str(x).map_err(|_| SerdeCompatError)?;
-    let y = F::from_str(y).map_err(|_| SerdeCompatError)?;
-    let z = F::from_str(z).map_err(|_| SerdeCompatError)?;
+    let x = parse_field_str_inner_unsigned(x)?;
+    let y = parse_field_str_inner_unsigned(y)?;
+    let z = parse_field_str_inner_unsigned(z)?;
     let p = Projective::<G1>::new_unchecked(x, y, z).into_affine();
     if p.is_zero() {
         return Ok(p);
     }
     if CHECK && !p.is_on_curve() {
-        return Err(SerdeCompatError);
+        return Err(SerdeCompatError("not con curve"));
     }
     if CHECK && !p.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(SerdeCompatError);
+        return Err(SerdeCompatError("not in correct subgroup"));
     }
     Ok(p)
 }
@@ -760,12 +835,12 @@ where
     Q: QuadExtConfig<BaseField = F>,
     G2: SWCurveConfig<BaseField = QuadExtField<Q>>,
 {
-    let x0 = F::from_str(x0).map_err(|_| SerdeCompatError)?;
-    let x1 = F::from_str(x1).map_err(|_| SerdeCompatError)?;
-    let y0 = F::from_str(y0).map_err(|_| SerdeCompatError)?;
-    let y1 = F::from_str(y1).map_err(|_| SerdeCompatError)?;
-    let z0 = F::from_str(z0).map_err(|_| SerdeCompatError)?;
-    let z1 = F::from_str(z1).map_err(|_| SerdeCompatError)?;
+    let x0 = parse_field_str_inner_unsigned(x0)?;
+    let x1 = parse_field_str_inner_unsigned(x1)?;
+    let y0 = parse_field_str_inner_unsigned(y0)?;
+    let y1 = parse_field_str_inner_unsigned(y1)?;
+    let z0 = parse_field_str_inner_unsigned(z0)?;
+    let z1 = parse_field_str_inner_unsigned(z1)?;
 
     let x = QuadExtField::<Q>::new(x0, x1);
     let y = QuadExtField::<Q>::new(y0, y1);
@@ -775,10 +850,10 @@ where
         return Ok(p);
     }
     if CHECK && !p.is_on_curve() {
-        return Err(SerdeCompatError);
+        return Err(SerdeCompatError("not on curve"));
     }
     if CHECK && !p.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(SerdeCompatError);
+        return Err(SerdeCompatError("not on correct subgroup"));
     }
     Ok(p)
 }
@@ -806,7 +881,7 @@ where
     F: PrimeField,
     G1: SWCurveConfig<BaseField = F>;
 
-impl<'de, F: PrimeField> de::Visitor<'de> for PrimeFieldVisitor<F> {
+impl<'de, const UNSIGNED: bool, F: PrimeField> de::Visitor<'de> for PrimeFieldVisitor<UNSIGNED, F> {
     type Value = F;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -827,11 +902,13 @@ impl<'de, F: PrimeField> de::Visitor<'de> for PrimeFieldVisitor<F> {
     where
         E: de::Error,
     {
-        F::from_str(v).map_err(|_| E::custom("Invalid data"))
+        parse_field_str_inner::<UNSIGNED, F>(v).map_err(E::custom)
     }
 }
 
-impl<'de, F: PrimeField> de::Visitor<'de> for PrimeFieldSeqVisitor<F> {
+impl<'de, const UNSIGNED: bool, F: PrimeField> de::Visitor<'de>
+    for PrimeFieldSeqVisitor<UNSIGNED, F>
+{
     type Value = Vec<F>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -852,9 +929,14 @@ impl<'de, F: PrimeField> de::Visitor<'de> for PrimeFieldSeqVisitor<F> {
     where
         A: de::SeqAccess<'de>,
     {
-        let mut values = vec![];
+        use serde::de::Error;
+        let mut values = if let Some(size_hint) = seq.size_hint() {
+            Vec::with_capacity(size_hint)
+        } else {
+            Vec::new()
+        };
         while let Some(s) = seq.next_element::<String>()? {
-            values.push(F::from_str(&s).map_err(|_| de::Error::custom("invalid field element"))?);
+            values.push(parse_field_str_inner::<UNSIGNED, F>(&s).map_err(A::Error::custom)?);
         }
         Ok(values)
     }
@@ -879,7 +961,7 @@ where
     where
         E: de::Error,
     {
-        Self::Value::deserialize_compressed(v).map_err(|err| de::Error::custom(err.to_string()))
+        Self::Value::deserialize_compressed(v).map_err(de::Error::custom)
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -901,12 +983,8 @@ where
                 "need three elements for cubic extension field in {}",
             ))
         } else {
-            let c0 = cubic_extension_field_from_vec(x).map_err(|_| {
-                de::Error::custom("InvalidData for target group (cubic extension field)")
-            })?;
-            let c1 = cubic_extension_field_from_vec(y).map_err(|_| {
-                de::Error::custom("InvalidData for target group (cubic extension field)")
-            })?;
+            let c0 = cubic_extension_field_from_vec(x).map_err(de::Error::custom)?;
+            let c1 = cubic_extension_field_from_vec(y).map_err(de::Error::custom)?;
             Ok(QuadExtField::new(c0, c1))
         }
     }
@@ -926,7 +1004,7 @@ where
     Fp6: CubicExtConfig<BaseField = QuadExtField<Fp2>>,
 {
     if strings.len() != 3 {
-        Err(SerdeCompatError)
+        Err(SerdeCompatError("expected cubic extension field"))
     } else {
         let c0 = quadratic_extension_field_from_vec(&strings[0])?;
         let c1 = quadratic_extension_field_from_vec(&strings[1])?;
@@ -947,10 +1025,10 @@ where
     Fp2: QuadExtConfig<BaseField = F>,
 {
     if strings.len() != 2 {
-        Err(SerdeCompatError)
+        Err(SerdeCompatError("expected quadratic extension field"))
     } else {
-        let c0 = F::from_str(&strings[0]).map_err(|_| SerdeCompatError)?;
-        let c1 = F::from_str(&strings[1]).map_err(|_| SerdeCompatError)?;
+        let c0 = parse_field_str_inner_unsigned(&strings[0])?;
+        let c1 = parse_field_str_inner_unsigned(&strings[1])?;
         Ok(QuadExtField::new(c0, c1))
     }
 }
@@ -1000,6 +1078,43 @@ where
         }
         Ok(values)
     }
+}
+
+#[inline]
+fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
+    v: &str,
+) -> Result<F, SerdeCompatError> {
+    // need to do this double hop because BigInteger trait only has try_from for BigUint. Also we now do this conversion for every time we call this function, which is not super nice, but this also happens when using from_str as well
+    let modulus =
+        num_bigint::BigInt::from(num_bigint::BigUint::try_from(F::MODULUS).map_err(|_| {
+            SerdeCompatError(
+                "Cannot modulus of this prime field to BigUint - prime field not supported",
+            )
+        })?);
+    let mut number =
+        num_bigint::BigInt::from_str(v).map_err(|_| SerdeCompatError("invalid data"))?;
+    if !UNSIGNED && number.sign() == Sign::Minus {
+        // We are in the sign case and the value is negative - to be compatible with Circom we add the modulus.
+        number += modulus;
+        // If the number is still negative, the value is larger than the Modulus. We reject this here. This allows us to call BigUint::try_from afterwards, as we know for sure the value is positive.
+        if number.sign() == Sign::Minus {
+            return Err(SerdeCompatError("doesn't fit into field"));
+        }
+    } else if UNSIGNED && number.sign() == Sign::Minus {
+        return Err(SerdeCompatError("only expects positive numbers"));
+    } else if modulus <= number {
+        return Err(SerdeCompatError("doesn't fit into field"));
+    }
+    let number = num_bigint::BigUint::try_from(number).expect("Works due to checks above");
+    // this should never happen for the fields we implement
+    let number = F::BigInt::try_from(number)
+        .map_err(|_| SerdeCompatError("Cannot convert to underlying BigInt again"))?;
+    Ok(F::from_bigint(number).expect("Is some due to checks above"))
+}
+
+#[inline(always)]
+fn parse_field_str_inner_unsigned<F: PrimeField>(v: &str) -> Result<F, SerdeCompatError> {
+    parse_field_str_inner::<true, F>(v)
 }
 
 #[cfg(feature = "bn254")]

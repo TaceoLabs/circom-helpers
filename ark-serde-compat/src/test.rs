@@ -1,6 +1,8 @@
 #[cfg(feature = "bn254")]
 mod bn254_tests {
-    use crate::bn254;
+    use crate::{bn254, parse_field_str_inner, parse_field_str_inner_unsigned};
+    use ark_ff::{AdditiveGroup, One, PrimeField, UniformRand};
+    use num_bigint::BigUint;
     use rand::Rng;
     use serde::{Deserialize, Serialize};
 
@@ -8,10 +10,22 @@ mod bn254_tests {
     struct Serializable {
         #[serde(serialize_with = "crate::serialize_f")]
         #[serde(deserialize_with = "crate::deserialize_f")]
+        zero: ark_bn254::Fr,
+        #[serde(serialize_with = "crate::serialize_f")]
+        #[serde(deserialize_with = "crate::deserialize_f_signed")]
+        zero_signed: ark_bn254::Fr,
+        #[serde(serialize_with = "crate::serialize_f")]
+        #[serde(deserialize_with = "crate::deserialize_f")]
         fr: ark_bn254::Fr,
+        #[serde(serialize_with = "crate::serialize_f")]
+        #[serde(deserialize_with = "crate::deserialize_f_signed")]
+        fr_signed: ark_bn254::Fr,
         #[serde(serialize_with = "crate::serialize_f_seq")]
         #[serde(deserialize_with = "crate::deserialize_f_seq")]
         fr_seq: Vec<ark_bn254::Fr>,
+        #[serde(serialize_with = "crate::serialize_f_seq")]
+        #[serde(deserialize_with = "crate::deserialize_f_seq_signed")]
+        fr_seq_signed: Vec<ark_bn254::Fr>,
         #[serde(serialize_with = "crate::serialize_f")]
         #[serde(deserialize_with = "crate::deserialize_f")]
         fq: ark_bn254::Fq,
@@ -35,8 +49,12 @@ mod bn254_tests {
     impl Serializable {
         fn rand<R: Rng>(r: &mut R) -> Self {
             Self {
+                zero: ark_bn254::Fr::ZERO,
+                zero_signed: ark_bn254::Fr::ZERO,
                 fr: r.r#gen(),
-                fr_seq: (0..10).map(|_| r.r#gen()).collect(),
+                fr_signed: r.r#gen(),
+                fr_seq: (0..10).map(|_| r.r#gen::<ark_bn254::Fr>()).collect(),
+                fr_seq_signed: (0..10).map(|_| r.r#gen()).collect(),
                 fq: r.r#gen(),
                 fq_seq: (0..10).map(|_| r.r#gen()).collect(),
                 g1: r.r#gen(),
@@ -62,11 +80,92 @@ mod bn254_tests {
         assert_eq!(should, json);
         assert_eq!(should, ciborium);
     }
+
+    #[test]
+    fn test_unsigned_malleability() {
+        let random_number: BigUint = ark_bn254::Fr::rand(&mut rand::thread_rng())
+            .into_bigint()
+            .into();
+        let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
+        let serialized = (random_number + modulus).to_str_radix(10);
+        let is_parse_inner_true_error = parse_field_str_inner::<true, ark_bn254::Fr>(&serialized)
+            .expect_err("should fail")
+            .0;
+        let is_parse_inner_false_error = parse_field_str_inner::<false, ark_bn254::Fr>(&serialized)
+            .expect_err("should fail")
+            .0;
+        let is_parse_inner_unsigned_error =
+            parse_field_str_inner_unsigned::<ark_bn254::Fr>(&serialized)
+                .expect_err("should fail")
+                .0;
+
+        assert_eq!(is_parse_inner_true_error, "doesn't fit into field");
+        assert_eq!(is_parse_inner_false_error, "doesn't fit into field");
+        assert_eq!(is_parse_inner_unsigned_error, "doesn't fit into field");
+    }
+
+    #[test]
+    fn test_signed_malleability() {
+        let random_number: BigUint = ark_bn254::Fr::rand(&mut rand::thread_rng())
+            .into_bigint()
+            .into();
+        let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
+        let serialized = (random_number + modulus).to_str_radix(10);
+        let neg_string = format!("-{serialized}");
+        let is_parse_inner_true_error = parse_field_str_inner::<true, ark_bn254::Fr>(&neg_string)
+            .expect_err("should fail")
+            .0;
+        let is_parse_inner_false_error = parse_field_str_inner::<false, ark_bn254::Fr>(&neg_string)
+            .expect_err("should fail")
+            .0;
+        let is_parse_inner_unsigned_error =
+            parse_field_str_inner_unsigned::<ark_bn254::Fr>(&neg_string)
+                .expect_err("should fail")
+                .0;
+
+        assert_eq!(is_parse_inner_true_error, "only expects positive numbers");
+        assert_eq!(is_parse_inner_false_error, "doesn't fit into field");
+        assert_eq!(
+            is_parse_inner_unsigned_error,
+            "only expects positive numbers"
+        );
+    }
+
+    #[test]
+    fn test_signed_parsing() {
+        let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
+        let one = BigUint::one();
+        let neg_one = format!("-{}", modulus - one);
+        let field_one = parse_field_str_inner::<false, ark_bn254::Fr>("1").expect("Works");
+        let field_neg_one = parse_field_str_inner::<false, ark_bn254::Fr>(&neg_one).expect("Works");
+        assert_eq!(field_one, field_neg_one);
+
+        let is_inner_unsigned_msg = parse_field_str_inner_unsigned::<ark_bn254::Fr>(&neg_one)
+            .expect_err("Should fail")
+            .0;
+        let is_inner_true_msg = parse_field_str_inner::<true, ark_bn254::Fr>(&neg_one)
+            .expect_err("Should fail")
+            .0;
+        assert_eq!(is_inner_unsigned_msg, "only expects positive numbers");
+        assert_eq!(is_inner_true_msg, "only expects positive numbers");
+        let field_zero = parse_field_str_inner::<false, ark_bn254::Fr>("0").expect("Works");
+        let field_neg_zero = parse_field_str_inner::<false, ark_bn254::Fr>("-0").expect("Works");
+
+        let parse_null_inner_unsigned =
+            parse_field_str_inner_unsigned::<ark_bn254::Fr>("-0").expect("Works");
+        let parse_null_unsigned =
+            parse_field_str_inner::<true, ark_bn254::Fr>("-0").expect("Works");
+        assert_eq!(parse_null_inner_unsigned, ark_bn254::Fr::ZERO);
+        assert_eq!(parse_null_unsigned, ark_bn254::Fr::ZERO);
+        assert_eq!(field_zero, ark_bn254::Fr::ZERO);
+        assert_eq!(field_neg_zero, ark_bn254::Fr::ZERO);
+    }
 }
 
 #[cfg(feature = "bls12-381")]
 mod bls12_381_tests {
     use crate::bls12_381;
+    use ark_ec::AdditiveGroup;
     use rand::Rng;
     use serde::{Deserialize, Serialize};
 
@@ -74,10 +173,22 @@ mod bls12_381_tests {
     struct Serializable {
         #[serde(serialize_with = "crate::serialize_f")]
         #[serde(deserialize_with = "crate::deserialize_f")]
+        zero: ark_bls12_381::Fr,
+        #[serde(serialize_with = "crate::serialize_f")]
+        #[serde(deserialize_with = "crate::deserialize_f_signed")]
+        zero_signed: ark_bls12_381::Fr,
+        #[serde(serialize_with = "crate::serialize_f")]
+        #[serde(deserialize_with = "crate::deserialize_f")]
         fr: ark_bls12_381::Fr,
+        #[serde(serialize_with = "crate::serialize_f")]
+        #[serde(deserialize_with = "crate::deserialize_f_signed")]
+        fr_signed: ark_bls12_381::Fr,
         #[serde(serialize_with = "crate::serialize_f_seq")]
         #[serde(deserialize_with = "crate::deserialize_f_seq")]
         fr_seq: Vec<ark_bls12_381::Fr>,
+        #[serde(serialize_with = "crate::serialize_f_seq")]
+        #[serde(deserialize_with = "crate::deserialize_f_seq_signed")]
+        fr_seq_signed: Vec<ark_bls12_381::Fr>,
         #[serde(serialize_with = "crate::serialize_f")]
         #[serde(deserialize_with = "crate::deserialize_f")]
         fq: ark_bls12_381::Fq,
@@ -101,8 +212,12 @@ mod bls12_381_tests {
     impl Serializable {
         fn rand<R: Rng>(r: &mut R) -> Self {
             Self {
+                zero: ark_bls12_381::Fr::ZERO,
+                zero_signed: ark_bls12_381::Fr::ZERO,
                 fr: r.r#gen(),
+                fr_signed: r.r#gen(),
                 fr_seq: (0..10).map(|_| r.r#gen()).collect(),
+                fr_seq_signed: (0..10).map(|_| r.r#gen()).collect(),
                 fq: r.r#gen(),
                 fq_seq: (0..10).map(|_| r.r#gen()).collect(),
                 g1: r.r#gen(),
@@ -134,17 +249,30 @@ mod bls12_381_tests {
 #[cfg(feature = "babyjubjub")]
 mod babyjubjub_test {
     use crate::babyjubjub;
+    use ark_ec::AdditiveGroup;
     use rand::Rng;
     use serde::{Deserialize, Serialize};
 
     #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
     struct Serializable {
         #[serde(serialize_with = "crate::serialize_f")]
+        #[serde(deserialize_with = "crate::deserialize_f_signed")]
+        zero: ark_babyjubjub::Fr,
+        #[serde(serialize_with = "crate::serialize_f")]
+        #[serde(deserialize_with = "crate::deserialize_f_signed")]
+        zero_signed: ark_babyjubjub::Fr,
+        #[serde(serialize_with = "crate::serialize_f")]
         #[serde(deserialize_with = "crate::deserialize_f")]
         fr: ark_babyjubjub::Fr,
+        #[serde(serialize_with = "crate::serialize_f")]
+        #[serde(deserialize_with = "crate::deserialize_f_signed")]
+        fr_signed: ark_babyjubjub::Fr,
         #[serde(serialize_with = "crate::serialize_f_seq")]
         #[serde(deserialize_with = "crate::deserialize_f_seq")]
         fr_seq: Vec<ark_babyjubjub::Fr>,
+        #[serde(serialize_with = "crate::serialize_f_seq")]
+        #[serde(deserialize_with = "crate::deserialize_f_seq_signed")]
+        fr_seq_signed: Vec<ark_babyjubjub::Fr>,
         #[serde(serialize_with = "crate::serialize_f")]
         #[serde(deserialize_with = "crate::deserialize_f")]
         fq: ark_babyjubjub::Fq,
@@ -165,8 +293,12 @@ mod babyjubjub_test {
     impl Serializable {
         fn rand<R: Rng>(r: &mut R) -> Self {
             Self {
+                zero: ark_babyjubjub::Fr::ZERO,
+                zero_signed: ark_babyjubjub::Fr::ZERO,
                 fr: r.r#gen(),
+                fr_signed: r.r#gen(),
                 fr_seq: (0..10).map(|_| r.r#gen()).collect(),
+                fr_seq_signed: (0..10).map(|_| r.r#gen()).collect(),
                 fq: r.r#gen(),
                 fq_seq: (0..10).map(|_| r.r#gen()).collect(),
                 g2: r.r#gen(),
