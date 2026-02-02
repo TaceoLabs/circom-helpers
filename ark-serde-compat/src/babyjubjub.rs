@@ -14,7 +14,6 @@ use serde::{
     de::{self},
     ser::SerializeSeq as _,
 };
-use std::str::FromStr;
 
 use crate::SerdeCompatError;
 
@@ -239,19 +238,17 @@ fn affine_from_strings<const CHECK: bool>(
     x: &str,
     y: &str,
 ) -> Result<ark_babyjubjub::EdwardsAffine, SerdeCompatError> {
-    let x = ark_babyjubjub::Fq::from_str(x).map_err(|_| SerdeCompatError)?;
-    let y = ark_babyjubjub::Fq::from_str(y).map_err(|_| SerdeCompatError)?;
+    let x = super::parse_field_str_inner_unsigned(x)?;
+    let y = super::parse_field_str_inner_unsigned(y)?;
     let p = ark_babyjubjub::EdwardsAffine::new_unchecked(x, y);
     if p.is_zero() {
         return Ok(p);
     }
-    if CHECK {
-        if !p.is_on_curve() {
-            return Err(SerdeCompatError);
-        }
-        if !p.is_in_correct_subgroup_assuming_on_curve() {
-            return Err(SerdeCompatError);
-        }
+    if CHECK && !p.is_on_curve() {
+        return Err(SerdeCompatError("not on curve"));
+    }
+    if CHECK && !p.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(SerdeCompatError("not on correct subgroup"));
     }
     Ok(p)
 }
