@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.1.1...taceo-groth16-material-v0.2.0)
+
+### Build
+
+
+- *(deps)* Update `taceo_circom_types` to v0.2.0, potentially breaking serialization if values were serialized non-canonically.
+
 ## [0.1.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.1.0...taceo-groth16-material-v0.1.1)
 
 ### 📚 Documentation
