@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.3.0...taceo-ark-serde-compat-v0.4.0)
+
+### ⛰️ Features
+
+
+- [**breaking**] Add unsigned variants of parsing. ([#31](https://github.com/TaceoLabs/circom-helpers/pull/31)) - ([f4703a3](https://github.com/TaceoLabs/circom-helpers/commit/f4703a383eb00cca6e702024b07c86082ec23fd0))
+
+### 🧪 Testing
+
+
+- Remove bincode serialization test, as this functionality is - ([515b224](https://github.com/TaceoLabs/circom-helpers/commit/515b22424f4301ff70123ca84899fd7985cf8cdb))
+
+
 ## [0.3.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.2.1...taceo-ark-serde-compat-v0.3.0)
 
 ### ⛰️ Features

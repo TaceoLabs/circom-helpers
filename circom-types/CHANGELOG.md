@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.1.2...taceo-circom-types-v0.2.0)
+
+### ⚙️ Miscellaneous Tasks
+
+
+- Updated the following local packages: taceo-ark-serde-compat - ([0000000](https://github.com/TaceoLabs/circom-helpers/commit/0000000))
+- This potentially breaks serialization of previous types that were not serialized canonically as strings.
+
+
 ## [0.1.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.1.1...taceo-circom-types-v0.1.2)
 
 ### ⚙️ Miscellaneous Tasks
