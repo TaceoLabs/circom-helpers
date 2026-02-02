@@ -1,6 +1,6 @@
 [package]
 name = "taceo-groth16-sol"
-version = "0.1.0"
+version = "0.2.0"
 description = "Generation of Solidity verifiers for Groth16 zkSNARKs, based on the Groth16 verifier template from gnark."
 keywords = ["zkSNARKs", "Groth16", "Solidity", "verifier"]
 readme = "./README.md"
