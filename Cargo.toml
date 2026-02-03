@@ -33,7 +33,7 @@ num-bigint = "0.4"
 num-traits = "0.2"
 rand = "0.8"
 rayon = "1.8"
-reqwest = { version = "0.12", default-features = false, features = [
+reqwest = { version = "0.13", default-features = false, features = [
   "rustls-tls"
 ] }
 ruint = "1.17"
