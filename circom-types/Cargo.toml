@@ -16,7 +16,6 @@ skip_feature_sets = [
   ["full-groth16", "full-plonk"],
 ]
 denylist = ["parallel", "bin", "full", "bls12-381"]
-always_include_features = ["bn254"]
 max_combination_size = 3
 
 [[bin]]
@@ -27,14 +26,14 @@ required-features = ["bin"]
 [dependencies]
 ark-bls12-381 = { workspace = true, optional = true }
 ark-bn254 = { workspace = true, optional = true }
-ark-ec = { workspace = true, optional = true }
+ark-ec = { workspace = true }
 ark-ff = { workspace = true }
 ark-groth16 = { workspace = true, optional = true }
 ark-poly = { workspace = true }
 ark-relations = { workspace = true, optional = true }
 ark-serde-compat = { workspace = true }
 ark-serialize = { workspace = true }
-ark-std = { workspace = true, optional = true }
+ark-std = { workspace = true }
 byteorder = { workspace = true }
 clap = { workspace = true, features = ["env"], optional = true }
 eyre = { workspace = true, optional = true }
@@ -60,7 +59,7 @@ bin = [
   "zkey"
 ]
 bls12-381 = ["ark-serde-compat/bls12-381", "dep:ark-bls12-381"]
-bn254 = ["ark-serde-compat/bn254", "dep:ark-bn254", "dep:ark-ec", "dep:ark-std"]
+bn254 = ["ark-serde-compat/bn254", "dep:ark-bn254"]
 full = ["bls12-381", "bn254", "full-groth16", "full-plonk"]
 full-groth16 = [
   "groth16",
@@ -83,9 +82,9 @@ full-plonk = [
 groth16 = []
 parallel = ["dep:rayon"]
 plonk = []
-proof = ["dep:ark-ec", "dep:ark-groth16"]
+proof = ["dep:ark-groth16"]
 public-input = []
-r1cs = ["dep:ark-std", "dep:ark-ec"]
-verification-key = ["dep:ark-ec", "dep:ark-groth16"]
+r1cs = []
+verification-key = ["dep:ark-groth16"]
 witness = []
-zkey = ["dep:ark-ec", "dep:ark-groth16", "dep:ark-relations"]
+zkey = ["dep:ark-groth16", "dep:ark-relations"]
