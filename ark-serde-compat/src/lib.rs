@@ -1091,6 +1091,18 @@ fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
     if UNSIGNED && v.starts_with('-') {
         return Err(SerdeCompatError("only expects positive numbers"));
     }
+    if UNSIGNED {
+        if v.chars().any(|x| !x.is_ascii_digit()) {
+            return Err(SerdeCompatError("only expects digits 0-9 for numbers"));
+        }
+    } else if v
+        .strip_prefix('-')
+        .unwrap_or(v)
+        .chars()
+        .any(|x| !x.is_ascii_digit())
+    {
+        return Err(SerdeCompatError("only expects digits 0-9 for numbers"));
+    }
     // need to do this double hop because BigInteger trait only has try_from for BigUint. Also we now do this conversion for every time we call this function, which is not super nice, but this also happens when using from_str as well
     let modulus =
         num_bigint::BigInt::from(num_bigint::BigUint::try_from(F::MODULUS).map_err(|_| {

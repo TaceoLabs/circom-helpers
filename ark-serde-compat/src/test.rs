@@ -230,12 +230,16 @@ mod bn254_tests {
         assert!(res.unwrap_err().to_string().contains("expected a string"));
 
         // Case 7: Hex string
-        // BigInt::from_str is typically base 10.
+        // BigInt::from_str is base 10.
         let json = r#"{"inner": "0x123"}"#;
         let res = serde_json::from_str::<UnsignedWrapper>(json);
         assert!(res.is_err());
         // verify it is an invalid data error (parsing failed)
-        assert!(res.unwrap_err().to_string().contains("invalid data"));
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
 
         // Case 8: zero-prefixed number
         let json = r#"{"inner": "0123"}"#;
@@ -264,14 +268,22 @@ mod bn254_tests {
         let res = serde_json::from_str::<UnsignedWrapper>(json);
         assert!(res.is_err());
         // verify it is an invalid data error (parsing failed)
-        assert!(res.unwrap_err().to_string().contains("invalid data"));
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
 
         // Case 11: space-postfixed number
         let json = r#"{"inner": "123 "}"#;
         let res = serde_json::from_str::<UnsignedWrapper>(json);
         assert!(res.is_err());
         // verify it is an invalid data error (parsing failed)
-        assert!(res.unwrap_err().to_string().contains("invalid data"));
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
 
         // Case 11: zero-prefixed zero
         let json = r#"{"inner": "00"}"#;
@@ -282,6 +294,94 @@ mod bn254_tests {
             res.unwrap_err()
                 .to_string()
                 .contains("zero must be serialized as '0'")
+        );
+    }
+
+    #[test]
+    fn test_signed_parsing_edge_cases() {
+        #[derive(Deserialize, Debug)]
+        struct SignedWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_signed")]
+            inner: ark_bn254::Fr,
+        }
+
+        // Case 1: 0
+        let json = r#"{"inner": "0"}"#;
+        let res: SignedWrapper = serde_json::from_str(json).expect("Should parse 0");
+        assert_eq!(res.inner, ark_bn254::Fr::ZERO);
+
+        // Case 2: -0
+        let json = r#"{"inner": "-0"}"#;
+        let res = serde_json::from_str::<SignedWrapper>(json).expect_err("should fail");
+        assert!(res.to_string().contains("zero must be serialized as '0'"));
+
+        // Case 3: -1
+        let json = r#"{"inner": "-1"}"#;
+        let res: SignedWrapper = serde_json::from_str(json).expect("Should parse -1");
+        assert_eq!(res.inner, -ark_bn254::Fr::ONE);
+
+        // Case 4: Modulus (should fail)
+        let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
+        let modulus_str = modulus.to_string();
+        let json = format!(r#"{{"inner": "{}"}}"#, modulus_str);
+        let res = serde_json::from_str::<SignedWrapper>(&json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("doesn't fit into field")
+        );
+
+        // Case 5: Modulus + 1 (should fail)
+        let modulus_plus_one = modulus + BigUint::one();
+        let json = format!(r#"{{"inner": "{}"}}"#, modulus_plus_one);
+        let res = serde_json::from_str::<SignedWrapper>(&json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("doesn't fit into field")
+        );
+
+        // Case 6: -Modulus (should be 0)
+        let json = format!(r#"{{"inner": "-{}"}}"#, modulus_str);
+        let res: SignedWrapper = serde_json::from_str(&json).expect("Should parse -Modulus");
+        assert_eq!(res.inner, ark_bn254::Fr::ZERO);
+
+        // Case 7: -(Modulus + 1) (should fail)
+        let json = format!(r#"{{"inner": "-{}"}}"#, modulus_plus_one);
+        let res = serde_json::from_str::<SignedWrapper>(&json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("doesn't fit into field")
+        );
+
+        // Case 8: JSON Number (not string)
+        let json = r#"{"inner": 0}"#;
+        let res = serde_json::from_str::<SignedWrapper>(json);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("expected a string"));
+
+        // Case 9: Hex string
+        let json = r#"{"inner": "0x123"}"#;
+        let res = serde_json::from_str::<SignedWrapper>(json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
+
+        // Case 10: negative Hex string
+        let json = r#"{"inner": "-0x123"}"#;
+        let res = serde_json::from_str::<SignedWrapper>(json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
         );
     }
 }
