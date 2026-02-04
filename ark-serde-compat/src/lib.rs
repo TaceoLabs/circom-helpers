@@ -1100,10 +1100,11 @@ fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
         })?);
     let mut number =
         num_bigint::BigInt::from_str(v).map_err(|_| SerdeCompatError("invalid data"))?;
-    if UNSIGNED && v.starts_with("0") && !number.is_zero() {
-        return Err(SerdeCompatError(
-            "invalid leading zeros for unsigned number",
-        ));
+    if number.is_zero() && v != "0" {
+        return Err(SerdeCompatError("zero must be serialized as '0'"));
+    }
+    if v.starts_with("0") && !number.is_zero() {
+        return Err(SerdeCompatError("invalid leading zeros for number"));
     }
     if !UNSIGNED && number.sign() == Sign::Minus {
         if !number.is_zero() && v.starts_with("-0") {

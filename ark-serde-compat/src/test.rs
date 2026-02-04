@@ -149,7 +149,10 @@ mod bn254_tests {
         assert_eq!(is_inner_unsigned_msg, "only expects positive numbers");
         assert_eq!(is_inner_true_msg, "only expects positive numbers");
         let field_zero = parse_field_str_inner::<false, ark_bn254::Fr>("0").expect("Works");
-        let field_neg_zero = parse_field_str_inner::<false, ark_bn254::Fr>("-0").expect("Works");
+        let field_neg_zero_msg = parse_field_str_inner::<false, ark_bn254::Fr>("-0")
+            .expect_err("Should fail")
+            .0;
+        assert_eq!(field_neg_zero_msg, "zero must be serialized as '0'");
 
         let parse_null_inner_unsigned_msg = parse_field_str_inner_unsigned::<ark_bn254::Fr>("-0")
             .expect_err("Should fail")
@@ -163,7 +166,6 @@ mod bn254_tests {
             .0;
         assert_eq!(parse_null_unsigned_msg, "only expects positive numbers");
         assert_eq!(field_zero, ark_bn254::Fr::ZERO);
-        assert_eq!(field_neg_zero, ark_bn254::Fr::ZERO);
     }
 
     #[test]
@@ -203,7 +205,7 @@ mod bn254_tests {
 
         // Case 4: Modulus + 1 (should fail)
         let modulus_plus_one = &modulus + BigUint::one();
-        let json = format!(r#"{{"inner": "{}"}}"#, modulus_plus_one.to_string());
+        let json = format!(r#"{{"inner": "{}"}}"#, modulus_plus_one);
         let res = serde_json::from_str::<UnsignedWrapper>(&json);
         assert!(res.is_err());
         assert!(
@@ -214,7 +216,7 @@ mod bn254_tests {
 
         // Case 5: Modulus - 1 (should work)
         let modulus_minus_one = &modulus - BigUint::one();
-        let json = format!(r#"{{"inner": "{}"}}"#, modulus_minus_one.to_string());
+        let json = format!(r#"{{"inner": "{}"}}"#, modulus_minus_one);
         let res: UnsignedWrapper = serde_json::from_str(&json).expect("Should parse modulus - 1");
         assert_eq!(res.inner, -ark_bn254::Fr::ONE);
 
@@ -270,6 +272,17 @@ mod bn254_tests {
         assert!(res.is_err());
         // verify it is an invalid data error (parsing failed)
         assert!(res.unwrap_err().to_string().contains("invalid data"));
+
+        // Case 11: zero-prefixed zero
+        let json = r#"{"inner": "00"}"#;
+        let res = serde_json::from_str::<UnsignedWrapper>(json);
+        assert!(res.is_err());
+        // verify it is an invalid data error (parsing failed)
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("zero must be serialized as '0'")
+        );
     }
 }
 
