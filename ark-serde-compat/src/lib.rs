@@ -1084,6 +1084,21 @@ where
 fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
     v: &str,
 ) -> Result<F, SerdeCompatError> {
+    if UNSIGNED && v.starts_with('-') {
+        return Err(SerdeCompatError("only expects positive numbers"));
+    }
+    if UNSIGNED {
+        if v.chars().any(|x| !x.is_ascii_digit()) {
+            return Err(SerdeCompatError("only expects digits 0-9 for numbers"));
+        }
+    } else if v
+        .strip_prefix('-')
+        .unwrap_or(v)
+        .chars()
+        .any(|x| !x.is_ascii_digit())
+    {
+        return Err(SerdeCompatError("only expects digits 0-9 for numbers"));
+    }
     // need to do this double hop because BigInteger trait only has try_from for BigUint. Also we now do this conversion for every time we call this function, which is not super nice, but this also happens when using from_str as well
     let modulus =
         num_bigint::BigInt::from(num_bigint::BigUint::try_from(F::MODULUS).map_err(|_| {
@@ -1093,7 +1108,18 @@ fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
         })?);
     let mut number =
         num_bigint::BigInt::from_str(v).map_err(|_| SerdeCompatError("invalid data"))?;
+    if number.is_zero() && v != "0" {
+        return Err(SerdeCompatError("zero must be serialized as '0'"));
+    }
+    if v.starts_with("0") && !number.is_zero() {
+        return Err(SerdeCompatError("invalid leading zeros for number"));
+    }
     if !UNSIGNED && number.sign() == Sign::Minus {
+        if !number.is_zero() && v.starts_with("-0") {
+            return Err(SerdeCompatError(
+                "invalid leading zeros for negative number",
+            ));
+        }
         // We are in the sign case and the value is negative - to be compatible with Circom we add the modulus.
         number += modulus;
         // If the number is still negative, the value is larger than the Modulus. We reject this here. This allows us to call BigUint::try_from afterwards, as we know for sure the value is positive.

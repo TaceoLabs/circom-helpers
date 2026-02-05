@@ -1,7 +1,7 @@
 #[cfg(feature = "bn254")]
 mod bn254_tests {
     use crate::{bn254, parse_field_str_inner, parse_field_str_inner_unsigned};
-    use ark_ff::{AdditiveGroup, One, PrimeField, UniformRand};
+    use ark_ff::{AdditiveGroup, Field, One, PrimeField, UniformRand};
     use num_bigint::BigUint;
     use rand::Rng;
     use serde::{Deserialize, Serialize};
@@ -149,16 +149,240 @@ mod bn254_tests {
         assert_eq!(is_inner_unsigned_msg, "only expects positive numbers");
         assert_eq!(is_inner_true_msg, "only expects positive numbers");
         let field_zero = parse_field_str_inner::<false, ark_bn254::Fr>("0").expect("Works");
-        let field_neg_zero = parse_field_str_inner::<false, ark_bn254::Fr>("-0").expect("Works");
+        let field_neg_zero_msg = parse_field_str_inner::<false, ark_bn254::Fr>("-0")
+            .expect_err("Should fail")
+            .0;
+        assert_eq!(field_neg_zero_msg, "zero must be serialized as '0'");
 
-        let parse_null_inner_unsigned =
-            parse_field_str_inner_unsigned::<ark_bn254::Fr>("-0").expect("Works");
-        let parse_null_unsigned =
-            parse_field_str_inner::<true, ark_bn254::Fr>("-0").expect("Works");
-        assert_eq!(parse_null_inner_unsigned, ark_bn254::Fr::ZERO);
-        assert_eq!(parse_null_unsigned, ark_bn254::Fr::ZERO);
+        let parse_null_inner_unsigned_msg = parse_field_str_inner_unsigned::<ark_bn254::Fr>("-0")
+            .expect_err("Should fail")
+            .0;
+        assert_eq!(
+            parse_null_inner_unsigned_msg,
+            "only expects positive numbers"
+        );
+        let parse_null_unsigned_msg = parse_field_str_inner::<true, ark_bn254::Fr>("-0")
+            .expect_err("Should fail")
+            .0;
+        assert_eq!(parse_null_unsigned_msg, "only expects positive numbers");
         assert_eq!(field_zero, ark_bn254::Fr::ZERO);
-        assert_eq!(field_neg_zero, ark_bn254::Fr::ZERO);
+    }
+
+    #[test]
+    fn test_unsigned_parsing_edge_cases() {
+        #[derive(Deserialize, Debug)]
+        struct UnsignedWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f")]
+            inner: ark_bn254::Fr,
+        }
+
+        // Case 1: 0
+        let json = r#"{"inner": "0"}"#;
+        let res: UnsignedWrapper = serde_json::from_str(json).expect("Should parse 0");
+        assert_eq!(res.inner, ark_bn254::Fr::ZERO);
+
+        // Case 2: Negative number (should fail for unsigned)
+        let json = r#"{"inner": "-1"}"#;
+        let res = serde_json::from_str::<UnsignedWrapper>(json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects positive numbers")
+        );
+
+        // Case 3: Modulus (should fail)
+        let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
+        let modulus_str = modulus.to_string();
+        let json = format!(r#"{{"inner": "{}"}}"#, modulus_str);
+        let res = serde_json::from_str::<UnsignedWrapper>(&json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("doesn't fit into field")
+        );
+
+        // Case 4: Modulus + 1 (should fail)
+        let modulus_plus_one = &modulus + BigUint::one();
+        let json = format!(r#"{{"inner": "{}"}}"#, modulus_plus_one);
+        let res = serde_json::from_str::<UnsignedWrapper>(&json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("doesn't fit into field")
+        );
+
+        // Case 5: Modulus - 1 (should work)
+        let modulus_minus_one = &modulus - BigUint::one();
+        let json = format!(r#"{{"inner": "{}"}}"#, modulus_minus_one);
+        let res: UnsignedWrapper = serde_json::from_str(&json).expect("Should parse modulus - 1");
+        assert_eq!(res.inner, -ark_bn254::Fr::ONE);
+
+        // Case 6: JSON Number (not string)
+        // Since deserialize_f calls deserialize_str, serde_json will expect a string token.
+        // Providing a number token will cause a type mismatch error in serde_json.
+        let json = r#"{"inner": 0}"#;
+        let res = serde_json::from_str::<UnsignedWrapper>(json);
+        assert!(res.is_err());
+        // verify it is a type error
+        assert!(res.unwrap_err().to_string().contains("expected a string"));
+
+        // Case 7: Hex string
+        // BigInt::from_str is base 10.
+        let json = r#"{"inner": "0x123"}"#;
+        let res = serde_json::from_str::<UnsignedWrapper>(json);
+        assert!(res.is_err());
+        // verify it is an invalid data error (parsing failed)
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
+
+        // Case 8: zero-prefixed number
+        let json = r#"{"inner": "0123"}"#;
+        let res = serde_json::from_str::<UnsignedWrapper>(json);
+        assert!(res.is_err());
+        // verify it is an invalid leading zeros error (parsing failed)
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("invalid leading zeros")
+        );
+
+        // Case 9: plus-prefixed number
+        let json = r#"{"inner": "+123"}"#;
+        let res = serde_json::from_str::<UnsignedWrapper>(json);
+        assert!(res.is_err());
+        // verify it is an invalid sign error (parsing failed)
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
+
+        // Case 10: space-prefixed number
+        let json = r#"{"inner": " 123"}"#;
+        let res = serde_json::from_str::<UnsignedWrapper>(json);
+        assert!(res.is_err());
+        // verify it is an invalid data error (parsing failed)
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
+
+        // Case 11: space-postfixed number
+        let json = r#"{"inner": "123 "}"#;
+        let res = serde_json::from_str::<UnsignedWrapper>(json);
+        assert!(res.is_err());
+        // verify it is an invalid data error (parsing failed)
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
+
+        // Case 11: zero-prefixed zero
+        let json = r#"{"inner": "00"}"#;
+        let res = serde_json::from_str::<UnsignedWrapper>(json);
+        assert!(res.is_err());
+        // verify it is an invalid data error (parsing failed)
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("zero must be serialized as '0'")
+        );
+    }
+
+    #[test]
+    fn test_signed_parsing_edge_cases() {
+        #[derive(Deserialize, Debug)]
+        struct SignedWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_signed")]
+            inner: ark_bn254::Fr,
+        }
+
+        // Case 1: 0
+        let json = r#"{"inner": "0"}"#;
+        let res: SignedWrapper = serde_json::from_str(json).expect("Should parse 0");
+        assert_eq!(res.inner, ark_bn254::Fr::ZERO);
+
+        // Case 2: -0
+        let json = r#"{"inner": "-0"}"#;
+        let res = serde_json::from_str::<SignedWrapper>(json).expect_err("should fail");
+        assert!(res.to_string().contains("zero must be serialized as '0'"));
+
+        // Case 3: -1
+        let json = r#"{"inner": "-1"}"#;
+        let res: SignedWrapper = serde_json::from_str(json).expect("Should parse -1");
+        assert_eq!(res.inner, -ark_bn254::Fr::ONE);
+
+        // Case 4: Modulus (should fail)
+        let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
+        let modulus_str = modulus.to_string();
+        let json = format!(r#"{{"inner": "{}"}}"#, modulus_str);
+        let res = serde_json::from_str::<SignedWrapper>(&json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("doesn't fit into field")
+        );
+
+        // Case 5: Modulus + 1 (should fail)
+        let modulus_plus_one = modulus + BigUint::one();
+        let json = format!(r#"{{"inner": "{}"}}"#, modulus_plus_one);
+        let res = serde_json::from_str::<SignedWrapper>(&json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("doesn't fit into field")
+        );
+
+        // Case 6: -Modulus (should be 0)
+        let json = format!(r#"{{"inner": "-{}"}}"#, modulus_str);
+        let res: SignedWrapper = serde_json::from_str(&json).expect("Should parse -Modulus");
+        assert_eq!(res.inner, ark_bn254::Fr::ZERO);
+
+        // Case 7: -(Modulus + 1) (should fail)
+        let json = format!(r#"{{"inner": "-{}"}}"#, modulus_plus_one);
+        let res = serde_json::from_str::<SignedWrapper>(&json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("doesn't fit into field")
+        );
+
+        // Case 8: JSON Number (not string)
+        let json = r#"{"inner": 0}"#;
+        let res = serde_json::from_str::<SignedWrapper>(json);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("expected a string"));
+
+        // Case 9: Hex string
+        let json = r#"{"inner": "0x123"}"#;
+        let res = serde_json::from_str::<SignedWrapper>(json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
+
+        // Case 10: negative Hex string
+        let json = r#"{"inner": "-0x123"}"#;
+        let res = serde_json::from_str::<SignedWrapper>(json);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
     }
 }
 
