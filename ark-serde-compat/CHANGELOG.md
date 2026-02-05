@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.4.0...taceo-ark-serde-compat-v0.4.1)
+
+### 🐛 Bug Fixes
+
+
+- Make string number parsing even stricter ([#36](https://github.com/TaceoLabs/circom-helpers/pull/36)) - ([633574e](https://github.com/TaceoLabs/circom-helpers/commit/633574e4aedb04e0092071523f7db8d92c961a6b))
+
+
 ## [0.4.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.3.0...taceo-ark-serde-compat-v0.4.0)
 
 ### ⛰️ Features
