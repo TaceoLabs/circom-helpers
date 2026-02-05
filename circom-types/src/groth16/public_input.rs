@@ -4,12 +4,17 @@ use ark_ff::PrimeField;
 use serde::{Deserialize, Serialize};
 
 /// Represents a public input for a Groth16 proof. Implements [`serde::Deserialize`] and [`serde::Serialize`] for loading/storing public inputs from/to JSON formats defined by Circom.
+///
+/// # Danger
+/// In contrast to most deserialization functions in this crate, this struct explicitly supports signed integers as they are also supported by Circom for public inputs.
+/// This means there is inherent malleability in the representation of public inputs, as negative integers can be represented in multiple ways (e.g., -1 and field_modulus - 1).
+/// Users of this struct should be aware of this malleability and handle it appropriately in their applications.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct PublicInput<F: PrimeField>(
     /// The values of the public input.
     #[serde(serialize_with = "ark_serde_compat::serialize_f_seq")]
-    #[serde(deserialize_with = "ark_serde_compat::deserialize_f_seq")]
+    #[serde(deserialize_with = "ark_serde_compat::deserialize_f_seq_signed")]
     pub Vec<F>,
 );
 
@@ -72,6 +77,24 @@ mod bn254_tests {
         assert_eq!(public_input.0, should_values);
         let ser_proof = serde_json::to_string(&public_input).unwrap();
         assert_eq!(ser_proof, is_public_input_str);
+        let der_proof = serde_json::from_str::<PublicInput<ark_bn254::Fr>>(&ser_proof).unwrap();
+        assert_eq!(der_proof, public_input);
+    }
+
+    #[test]
+    fn can_serde_public_input_bn254_signed() {
+        let is_public_input_str = "[\"-1\",\"2\",\"-3\"]";
+        let serialized_public_input_str = "[\"21888242871839275222246405745257275088548364400416034343698204186575808495616\",\"2\",\"21888242871839275222246405745257275088548364400416034343698204186575808495614\"]";
+        let public_input =
+            serde_json::from_str::<PublicInput<ark_bn254::Fr>>(is_public_input_str).unwrap();
+        let should_values = vec![
+            ark_bn254::Fr::from_str("-1").unwrap(),
+            ark_bn254::Fr::from_str("2").unwrap(),
+            ark_bn254::Fr::from_str("-3").unwrap(),
+        ];
+        assert_eq!(public_input.0, should_values);
+        let ser_proof = serde_json::to_string(&public_input).unwrap();
+        assert_eq!(ser_proof, serialized_public_input_str);
         let der_proof = serde_json::from_str::<PublicInput<ark_bn254::Fr>>(&ser_proof).unwrap();
         assert_eq!(der_proof, public_input);
     }
