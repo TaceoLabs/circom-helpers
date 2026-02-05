@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1]
+
+### 🐛 Bug Fixes
+
+
+- Make ark-ec and ark-std non optional features ([#34](https://github.com/TaceoLabs/circom-helpers/pull/34)) - ([cce0d42](https://github.com/TaceoLabs/circom-helpers/commit/cce0d4214bccd5581e84d0dc3b253acca6fba856))
+
+
 ## [0.2.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.2.0...taceo-circom-types-v0.2.1)
 
 ### 🐛 Bug Fixes
