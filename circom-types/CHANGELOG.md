@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2]
+
+### 🐛 Bug Fixes
+
+
+- Allow negative values again for Circom public inputs ([#38](https://github.com/TaceoLabs/circom-helpers/pull/38)) - ([03d46d6](https://github.com/TaceoLabs/circom-helpers/commit/03d46d6060d0d1c9657954d134038c95c7877bbd))
+
+
 ## [0.2.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.2.1...taceo-circom-types-v0.2.2)
 
 ### 🐛 Bug Fixes
