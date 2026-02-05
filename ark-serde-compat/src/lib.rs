@@ -1084,10 +1084,6 @@ where
 fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
     v: &str,
 ) -> Result<F, SerdeCompatError> {
-    // forbid starting + sign
-    if v.starts_with('+') {
-        return Err(SerdeCompatError("invalid leading + sign for number"));
-    }
     if UNSIGNED && v.starts_with('-') {
         return Err(SerdeCompatError("only expects positive numbers"));
     }

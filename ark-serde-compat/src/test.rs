@@ -260,7 +260,7 @@ mod bn254_tests {
         assert!(
             res.unwrap_err()
                 .to_string()
-                .contains("invalid leading + sign")
+                .contains("only expects digits 0-9 for numbers")
         );
 
         // Case 10: space-prefixed number
