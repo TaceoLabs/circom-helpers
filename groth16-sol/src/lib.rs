@@ -141,7 +141,7 @@ fn compress_g1_point(point: &G1Affine) -> U256 {
 
 /// Compress a G2 point into two U256s, using the method described in the contract.
 /// See <https://2π.com/23/bn254-compression> for further explanation.
-fn compress_g2_point(point: &G2Affine) -> (U256, U256) {
+fn compress_g2_point(point: &G2Affine) -> [U256; 2] {
     match point.xy() {
         Some((x, y)) => {
             let n3ab = x.c0 * x.c1 * Fq::from(-3);
@@ -167,22 +167,22 @@ fn compress_g2_point(point: &G2Affine) -> (U256, U256) {
                 let b0_comp: U256 = x.c0.into();
                 let b1_comp: U256 = x.c1.into();
                 if hint {
-                    (b0_comp << 2 | U256::ONE << 1, b1_comp)
+                    [b0_comp << 2 | U256::ONE << 1, b1_comp]
                 } else {
-                    (b0_comp << 2, b1_comp)
+                    [b0_comp << 2, b1_comp]
                 }
             } else {
                 assert_eq!(y, -y_computed);
                 let b0_comp: U256 = x.c0.into();
                 let b1_comp: U256 = x.c1.into();
                 if hint {
-                    (b0_comp << 2 | (U256::ONE << 1) | U256::ONE, b1_comp)
+                    [b0_comp << 2 | (U256::ONE << 1) | U256::ONE, b1_comp]
                 } else {
-                    (b0_comp << 2 | U256::ONE, b1_comp)
+                    [b0_comp << 2 | U256::ONE, b1_comp]
                 }
             }
         }
-        None => (U256::ZERO, U256::ZERO), // Infinity represented as (0, 0)
+        None => [U256::ZERO, U256::ZERO], // Infinity represented as (0, 0)
     }
 }
 
@@ -195,7 +195,7 @@ fn compress_g2_point(point: &G2Affine) -> (U256, U256) {
 /// This function will panic if the proof contains points that are not on the respective curves.
 pub fn prepare_compressed_proof(proof: &Proof<ark_bn254::Bn254>) -> [U256; 4] {
     let a_compressed = compress_g1_point(&proof.a);
-    let (b0_compressed, b1_compressed) = compress_g2_point(&proof.b);
+    let [b0_compressed, b1_compressed] = compress_g2_point(&proof.b);
     let c_compressed = compress_g1_point(&proof.c);
 
     [a_compressed, b1_compressed, b0_compressed, c_compressed]
@@ -222,4 +222,151 @@ pub fn prepare_uncompressed_proof(proof: &Proof<ark_bn254::Bn254>) -> [U256; 8] 
         cx.into(),
         cy.into(),
     ]
+}
+
+/// An error type representing an invalid compressed point during decompression.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct InvalidCompressedPoint;
+
+impl core::error::Error for InvalidCompressedPoint {}
+
+impl core::fmt::Display for InvalidCompressedPoint {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Encountered an invalid point during decompression")
+    }
+}
+
+fn decompress_g1_point(compressed: U256) -> Result<G1Affine, InvalidCompressedPoint> {
+    if compressed.is_zero() {
+        // Infinity point
+        return Ok(G1Affine::identity());
+    }
+    let x: U256 = compressed >> 1;
+    // Checks that x is a valid field element < p
+    let x = Fq::try_from(x).map_err(|_| InvalidCompressedPoint)?;
+    let y_sqr = x.pow([3]) + Fq::from(3);
+    let y = y_sqr.sqrt().ok_or(InvalidCompressedPoint)?;
+    let y = if compressed.bit(0) {
+        // y is the negative square root
+        -y
+    } else {
+        // y is the positive square root
+        y
+    };
+    let res = G1Affine::new_unchecked(x, y);
+    if res.is_on_curve() && res.is_in_correct_subgroup_assuming_on_curve() {
+        Ok(res)
+    } else {
+        Err(InvalidCompressedPoint)
+    }
+}
+
+/// Decompress a G2 point from its compressed representation.
+/// The input array is [c0, c1], with c0 being the low degree term of the quadratic extension field..
+fn decompress_g2_point(compressed: [U256; 2]) -> Result<G2Affine, InvalidCompressedPoint> {
+    let c0 = compressed[0];
+    let c1 = compressed[1];
+    if c0.is_zero() && c1.is_zero() {
+        // Infinity point
+        return Ok(G2Affine::identity());
+    }
+    let negate_point = c0.bit(0);
+    let hint = c0.bit(1);
+    let x0: U256 = c0 >> 2;
+    let x1 = c1;
+    // Checks that x0 is a valid field element < p
+    let x0 = Fq::try_from(x0).map_err(|_| InvalidCompressedPoint)?;
+    // Checks that x1 is a valid field element < p
+    let x1 = Fq::try_from(x1).map_err(|_| InvalidCompressedPoint)?;
+
+    let n3ab = x0 * x1 * Fq::from(-3);
+    let a_3 = x0.pow([3]);
+    let b_3 = x1.pow([3]);
+
+    let frac_27_82 = Fq::from(27) * Fq::from(82).inverse().unwrap();
+    let frac_3_82 = Fq::from(3) * Fq::from(82).inverse().unwrap();
+    let y0_pos = (n3ab * x1) + a_3 + frac_27_82;
+    let y1_pos = -((n3ab * x0) + b_3 + frac_3_82);
+
+    let y2 = ark_bn254::Fq2::new(y0_pos, y1_pos);
+    let y = y2.sqrt().ok_or(InvalidCompressedPoint)?;
+    let y = if negate_point { -y } else { y };
+    // recompute the hint and check it against the compressed value to ensure the point is valid
+    let half = Fq::from(2).inverse().unwrap();
+    let d = ((y0_pos * y0_pos) + (y1_pos * y1_pos))
+        .sqrt()
+        .ok_or(InvalidCompressedPoint)?;
+    let hint_recomputed = ((y0_pos + d) * half).sqrt().is_none();
+    if hint != hint_recomputed {
+        return Err(InvalidCompressedPoint);
+    }
+    let res = G2Affine::new_unchecked(ark_bn254::Fq2::new(x0, x1), y);
+    if res.is_on_curve() && res.is_in_correct_subgroup_assuming_on_curve() {
+        Ok(res)
+    } else {
+        Err(InvalidCompressedPoint)
+    }
+}
+
+/// Decompress a Groth16 proof from its compressed representation.
+///
+/// The input is an array of 4 U256 values, corresponding to the compressed points A, B, and C in the proof.
+/// The output is a `Proof<ark_bn254::Bn254>` that can be used for verification with arkworks.
+///
+/// # Errors
+/// This function will return an error if any of the compressed points are invalid.
+pub fn decompress_proof(
+    compressed_proof: &[U256; 4],
+) -> Result<Proof<ark_bn254::Bn254>, InvalidCompressedPoint> {
+    let a_compressed = compressed_proof[0];
+    let b1_compressed = compressed_proof[1];
+    let b0_compressed = compressed_proof[2];
+    let c_compressed = compressed_proof[3];
+
+    let a = decompress_g1_point(a_compressed)?;
+    let b = decompress_g2_point([b0_compressed, b1_compressed])?;
+    let c = decompress_g1_point(c_compressed)?;
+
+    Ok(Proof { a, b, c })
+}
+
+#[cfg(test)]
+mod tests {
+    use ark_ff::UniformRand;
+
+    #[test]
+    fn test_roundtrip_compression() {
+        use ark_bn254::{G1Affine, G2Affine};
+        use rand::thread_rng;
+
+        let mut rng = thread_rng();
+
+        // Test G1 point compression and decompression
+        for _ in 0..100 {
+            let point = G1Affine::rand(&mut rng);
+            let compressed = super::compress_g1_point(&point);
+            let decompressed = super::decompress_g1_point(compressed).unwrap();
+            assert_eq!(point, decompressed);
+        }
+        {
+            let point = G1Affine::identity();
+            let compressed = super::compress_g1_point(&point);
+            let decompressed = super::decompress_g1_point(compressed).unwrap();
+            assert_eq!(point, decompressed);
+        }
+
+        // Test G2 point compression and decompression
+        for _ in 0..100 {
+            let point = G2Affine::rand(&mut rng);
+            let compressed = super::compress_g2_point(&point);
+            let decompressed = super::decompress_g2_point(compressed).unwrap();
+            assert_eq!(point, decompressed);
+        }
+        {
+            let point = G2Affine::identity();
+            let compressed = super::compress_g2_point(&point);
+            let decompressed = super::decompress_g2_point(compressed).unwrap();
+            assert_eq!(point, decompressed);
+        }
+    }
 }
