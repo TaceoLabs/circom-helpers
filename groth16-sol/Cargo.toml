@@ -32,8 +32,9 @@ serde_json = { workspace = true, optional = true }
 [dev-dependencies]
 circom-types.workspace = true
 serde_json.workspace = true
+rand.workspace = true
 
 [features]
 default = ["template"]
-bin = ["circom-types", "clap", "serde_json", "template"]
-template = ["askama"]
+bin = ["dep:circom-types", "dep:clap", "dep:serde_json", "template"]
+template = ["dep:askama"]
