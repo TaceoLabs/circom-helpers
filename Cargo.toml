@@ -24,7 +24,7 @@ ark-std = "0.5"
 byteorder = "1.5"
 ciborium = "0.2.2"
 circom-types = { package = "taceo-circom-types", path = "circom-types", version = "0.2.2" }
-circom-witness-rs = "0.2.2"
+circom-witness-rs = "0.2.3"
 clap = { version = "4.4.8", features = ["derive"] }
 eyre = "0.6"
 groth16 = { package = "taceo-groth16", path = "groth16", version = "0.1" }
