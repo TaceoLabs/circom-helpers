@@ -7,12 +7,14 @@ use ark_ff::Field as _;
 use ark_ff::LegendreSymbol;
 use ark_ff::UniformRand as _;
 use ark_serialize::CanonicalDeserialize;
+use ark_serialize::CanonicalSerialize;
 use circom_witness_rs::Graph;
 use groth16::CircomReduction;
 use groth16::Groth16;
 use rand::{CryptoRng, Rng};
 use ruint::aliases::U256;
 use sha2::Digest as _;
+use std::io::Write as _;
 use std::ops::Shr;
 use std::sync::Arc;
 use std::{collections::HashMap, path::Path};
@@ -83,6 +85,20 @@ pub enum ZkeyError {
     IoError(#[from] std::io::Error),
 }
 
+/// Errors that can occur while serializing [`CircomGroth16Material`] into bytes/files.
+#[derive(Debug, thiserror::Error)]
+pub enum MaterialSerializationError {
+    /// Could not serialize the `.zkey` bytes.
+    #[error("could not serialize zkey - see wrapped error")]
+    ZkeySerialization(#[source] ark_serialize::SerializationError),
+    /// Could not serialize the witness graph bytes.
+    #[error("could not serialize graph - see wrapped error")]
+    GraphSerialization(#[source] postcard::Error),
+    /// Any I/O error encountered while writing the serialized bytes.
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+}
+
 #[cfg(any(feature = "reqwest", feature = "reqwest-blocking"))]
 impl From<reqwest::Error> for ZkeyError {
     fn from(value: reqwest::Error) -> Self {
@@ -138,6 +154,12 @@ pub struct CircomGroth16MaterialBuilder {
     fingerprint_zkey: Option<String>,
     fingerprint_graph: Option<String>,
     bbfs: HashMap<String, BlackBoxFunction>,
+}
+
+/// Builder-style serializer for exporting [`CircomGroth16Material`] into binary representations.
+pub struct CircomGroth16MaterialSerializer<'a> {
+    material: &'a CircomGroth16Material,
+    compress: Compress,
 }
 
 impl Default for CircomGroth16MaterialBuilder {
@@ -393,6 +415,28 @@ impl CircomGroth16MaterialBuilder {
 }
 
 impl CircomGroth16Material {
+    /// Creates a serializer for exporting the loaded `.zkey` and graph into binary blobs.
+    ///
+    /// By default, `.zkey` bytes are serialized with [`Compress::No`].
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// # use taceo_groth16_material::circom::{CircomGroth16Material, Compress};
+    /// # let material: CircomGroth16Material = unimplemented!();
+    /// let (zkey_bytes, graph_bytes) = material
+    ///     .serializer()
+    ///     .compress(Compress::No)
+    ///     .to_bytes()
+    ///     .expect("can serialize material");
+    /// # let _ = (zkey_bytes, graph_bytes);
+    /// ```
+    pub fn serializer(&self) -> CircomGroth16MaterialSerializer<'_> {
+        CircomGroth16MaterialSerializer {
+            material: self,
+            compress: Compress::No,
+        }
+    }
+
     /// Returns a reference to the underlying [ArkZkey].
     pub fn zkey(&self) -> &ArkZkey<Bn254> {
         &self.zkey
@@ -454,5 +498,72 @@ impl CircomGroth16Material {
     ) -> Result<(), Groth16Error> {
         Groth16::verify(&self.zkey.pk.vk, proof, public_inputs)
             .map_err(|_| Groth16Error::InvalidProof)
+    }
+}
+
+impl<'a> CircomGroth16MaterialSerializer<'a> {
+    /// Sets the compression mode for serializing the `.zkey` bytes.
+    pub fn compress(mut self, compress: Compress) -> Self {
+        self.compress = compress;
+        self
+    }
+
+    /// Serializes the material into `(zkey_bytes, graph_bytes)`.
+    ///
+    /// The graph bytes are encoded with `postcard` as `(nodes, signals, input_mapping)`.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// # use taceo_groth16_material::circom::{CircomGroth16Material, Compress};
+    /// # let material: CircomGroth16Material = unimplemented!();
+    /// let (_zkey_bytes, _graph_bytes) = material
+    ///     .serializer()
+    ///     .compress(Compress::No)
+    ///     .to_bytes()
+    ///     .expect("can export bytes");
+    /// ```
+    pub fn to_bytes(self) -> Result<(Vec<u8>, Vec<u8>), MaterialSerializationError> {
+        let mut zkey_bytes = Vec::new();
+        let mut graph_bytes = Vec::new();
+        self.to_writer(&mut zkey_bytes, &mut graph_bytes)?;
+        Ok((zkey_bytes, graph_bytes))
+    }
+
+    /// Serializes and writes the material into `.zkey` and graph writers.
+    pub fn to_writer(
+        self,
+        mut zkey_writer: impl std::io::Write,
+        mut graph_writer: impl std::io::Write,
+    ) -> Result<(), MaterialSerializationError> {
+        self.material
+            .zkey
+            .serialize_with_mode(&mut zkey_writer, self.compress)
+            .map_err(MaterialSerializationError::ZkeySerialization)?;
+        postcard::to_io(
+            &(
+                &self.material.graph.nodes,
+                &self.material.graph.signals,
+                &self.material.graph.input_mapping,
+            ),
+            &mut graph_writer,
+        )
+        .map_err(MaterialSerializationError::GraphSerialization)?;
+        Ok(())
+    }
+
+    /// Serializes and writes the material into `.zkey` and graph files.
+    pub fn to_paths(
+        self,
+        zkey_path: impl AsRef<Path>,
+        graph_path: impl AsRef<Path>,
+    ) -> Result<(), MaterialSerializationError> {
+        let zkey_file = std::fs::File::create(zkey_path)?;
+        let graph_file = std::fs::File::create(graph_path)?;
+        let mut zkey_writer = std::io::BufWriter::new(zkey_file);
+        let mut graph_writer = std::io::BufWriter::new(graph_file);
+        self.to_writer(&mut zkey_writer, &mut graph_writer)?;
+        zkey_writer.flush()?;
+        graph_writer.flush()?;
+        Ok(())
     }
 }

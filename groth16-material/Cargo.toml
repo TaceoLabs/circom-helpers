@@ -30,6 +30,7 @@ eyre = { workspace = true }
 groth16 = { workspace = true }
 hex = { workspace = true }
 rand = { workspace = true }
+postcard = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 ruint = { workspace = true, optional = true }
 sha2 = { workspace = true }
@@ -38,7 +39,7 @@ tracing = { workspace = true }
 
 [features]
 default = ["circom"]
-circom = ["dep:ark-serialize", "dep:circom-witness-rs", "dep:ruint"]
+circom = ["dep:ark-serialize", "dep:circom-witness-rs", "dep:postcard", "dep:ruint"]
 full = ["circom", "noir"]
 noir = []
 reqwest = ["dep:reqwest"]
