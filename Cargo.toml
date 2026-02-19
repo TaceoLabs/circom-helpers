@@ -33,6 +33,7 @@ num-bigint = "0.4"
 num-traits = "0.2"
 rand = "0.8"
 rayon = "1.8"
+postcard = "1"
 reqwest = { version = "0.12", default-features = false, features = [
   "rustls-tls"
 ] }
