@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.2.2...taceo-groth16-material-v0.2.3)
+
+### ⛰️ Features
+
+
+- Provide a `CircomGroth16MaterialSerializer` ([#45](https://github.com/TaceoLabs/circom-helpers/pull/45)) - ([139b8c7](https://github.com/TaceoLabs/circom-helpers/commit/139b8c7740ea91fff210312cf12640c1acb1bb51))
+
+
 ## [0.2.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.2.1...taceo-groth16-material-v0.2.2)
 
 ### ⚙️ Miscellaneous Tasks
