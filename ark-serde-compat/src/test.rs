@@ -191,36 +191,21 @@ mod bn254_tests {
 
         // Case 2: Negative number (should fail for unsigned)
         let json = r#"{"inner": "-1"}"#;
-        let res = serde_json::from_str::<UnsignedWrapper>(json);
-        assert!(res.is_err());
-        assert!(
-            res.unwrap_err()
-                .to_string()
-                .contains("only expects positive numbers")
-        );
+        let err = serde_json::from_str::<UnsignedWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("only expects positive numbers"));
 
         // Case 3: Modulus (should fail)
         let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
         let modulus_str = modulus.to_string();
         let json = format!(r#"{{"inner": "{}"}}"#, modulus_str);
-        let res = serde_json::from_str::<UnsignedWrapper>(&json);
-        assert!(res.is_err());
-        assert!(
-            res.unwrap_err()
-                .to_string()
-                .contains("doesn't fit into field")
-        );
+        let err = serde_json::from_str::<UnsignedWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("doesn't fit into field"));
 
         // Case 4: Modulus + 1 (should fail)
         let modulus_plus_one = &modulus + BigUint::one();
         let json = format!(r#"{{"inner": "{}"}}"#, modulus_plus_one);
-        let res = serde_json::from_str::<UnsignedWrapper>(&json);
-        assert!(res.is_err());
-        assert!(
-            res.unwrap_err()
-                .to_string()
-                .contains("doesn't fit into field")
-        );
+        let err = serde_json::from_str::<UnsignedWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("doesn't fit into field"));
 
         // Case 5: Modulus - 1 (should work)
         let modulus_minus_one = &modulus - BigUint::one();
@@ -232,77 +217,58 @@ mod bn254_tests {
         // Since deserialize_f calls deserialize_str, serde_json will expect a string token.
         // Providing a number token will cause a type mismatch error in serde_json.
         let json = r#"{"inner": 0}"#;
-        let res = serde_json::from_str::<UnsignedWrapper>(json);
-        assert!(res.is_err());
+        let err = serde_json::from_str::<UnsignedWrapper>(json).expect_err("Should be an error");
         // verify it is a type error
-        assert!(res.unwrap_err().to_string().contains("expected a string"));
+        assert!(err.to_string().contains("expected a string"));
 
         // Case 7: Hex string
         // BigInt::from_str is base 10.
         let json = r#"{"inner": "0x123"}"#;
-        let res = serde_json::from_str::<UnsignedWrapper>(json);
-        assert!(res.is_err());
+        let err = serde_json::from_str::<UnsignedWrapper>(json).expect_err("Should be an error");
         // verify it is an invalid data error (parsing failed)
         assert!(
-            res.unwrap_err()
-                .to_string()
+            err.to_string()
                 .contains("only expects digits 0-9 for numbers")
         );
 
         // Case 8: zero-prefixed number
         let json = r#"{"inner": "0123"}"#;
-        let res = serde_json::from_str::<UnsignedWrapper>(json);
-        assert!(res.is_err());
+        let err = serde_json::from_str::<UnsignedWrapper>(json).expect_err("Should be an error");
         // verify it is an invalid leading zeros error (parsing failed)
-        assert!(
-            res.unwrap_err()
-                .to_string()
-                .contains("invalid leading zeros")
-        );
+        assert!(err.to_string().contains("invalid leading zeros"));
 
         // Case 9: plus-prefixed number
         let json = r#"{"inner": "+123"}"#;
-        let res = serde_json::from_str::<UnsignedWrapper>(json);
-        assert!(res.is_err());
+        let err = serde_json::from_str::<UnsignedWrapper>(json).expect_err("Should be an error");
         // verify it is an invalid sign error (parsing failed)
         assert!(
-            res.unwrap_err()
-                .to_string()
+            err.to_string()
                 .contains("only expects digits 0-9 for numbers")
         );
 
         // Case 10: space-prefixed number
         let json = r#"{"inner": " 123"}"#;
-        let res = serde_json::from_str::<UnsignedWrapper>(json);
-        assert!(res.is_err());
+        let err = serde_json::from_str::<UnsignedWrapper>(json).expect_err("Should be an error");
         // verify it is an invalid data error (parsing failed)
         assert!(
-            res.unwrap_err()
-                .to_string()
+            err.to_string()
                 .contains("only expects digits 0-9 for numbers")
         );
 
         // Case 11: space-postfixed number
         let json = r#"{"inner": "123 "}"#;
-        let res = serde_json::from_str::<UnsignedWrapper>(json);
-        assert!(res.is_err());
+        let err = serde_json::from_str::<UnsignedWrapper>(json).expect_err("Should be an error");
         // verify it is an invalid data error (parsing failed)
         assert!(
-            res.unwrap_err()
-                .to_string()
+            err.to_string()
                 .contains("only expects digits 0-9 for numbers")
         );
 
         // Case 11: zero-prefixed zero
         let json = r#"{"inner": "00"}"#;
-        let res = serde_json::from_str::<UnsignedWrapper>(json);
-        assert!(res.is_err());
+        let err = serde_json::from_str::<UnsignedWrapper>(json).expect_err("Should be an error");
         // verify it is an invalid data error (parsing failed)
-        assert!(
-            res.unwrap_err()
-                .to_string()
-                .contains("zero must be serialized as '0'")
-        );
+        assert!(err.to_string().contains("zero must be serialized as '0'"));
     }
 
     #[test]
@@ -332,24 +298,14 @@ mod bn254_tests {
         let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
         let modulus_str = modulus.to_string();
         let json = format!(r#"{{"inner": "{}"}}"#, modulus_str);
-        let res = serde_json::from_str::<SignedWrapper>(&json);
-        assert!(res.is_err());
-        assert!(
-            res.unwrap_err()
-                .to_string()
-                .contains("doesn't fit into field")
-        );
+        let err = serde_json::from_str::<SignedWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("doesn't fit into field"));
 
         // Case 5: Modulus + 1 (should fail)
         let modulus_plus_one = modulus + BigUint::one();
         let json = format!(r#"{{"inner": "{}"}}"#, modulus_plus_one);
-        let res = serde_json::from_str::<SignedWrapper>(&json);
-        assert!(res.is_err());
-        assert!(
-            res.unwrap_err()
-                .to_string()
-                .contains("doesn't fit into field")
-        );
+        let err = serde_json::from_str::<SignedWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("doesn't fit into field"));
 
         // Case 6: -Modulus (should be 0)
         let json = format!(r#"{{"inner": "-{}"}}"#, modulus_str);
@@ -358,39 +314,255 @@ mod bn254_tests {
 
         // Case 7: -(Modulus + 1) (should fail)
         let json = format!(r#"{{"inner": "-{}"}}"#, modulus_plus_one);
-        let res = serde_json::from_str::<SignedWrapper>(&json);
-        assert!(res.is_err());
-        assert!(
-            res.unwrap_err()
-                .to_string()
-                .contains("doesn't fit into field")
-        );
+        let err = serde_json::from_str::<SignedWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("doesn't fit into field"));
 
         // Case 8: JSON Number (not string)
         let json = r#"{"inner": 0}"#;
-        let res = serde_json::from_str::<SignedWrapper>(json);
-        assert!(res.is_err());
-        assert!(res.unwrap_err().to_string().contains("expected a string"));
+        let err = serde_json::from_str::<SignedWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("expected a string"));
 
         // Case 9: Hex string
         let json = r#"{"inner": "0x123"}"#;
-        let res = serde_json::from_str::<SignedWrapper>(json);
-        assert!(res.is_err());
+        let err = serde_json::from_str::<SignedWrapper>(json).expect_err("Should be an error");
         assert!(
-            res.unwrap_err()
-                .to_string()
+            err.to_string()
                 .contains("only expects digits 0-9 for numbers")
         );
 
         // Case 10: negative Hex string
         let json = r#"{"inner": "-0x123"}"#;
-        let res = serde_json::from_str::<SignedWrapper>(json);
-        assert!(res.is_err());
+        let err = serde_json::from_str::<SignedWrapper>(json).expect_err("Should be an error");
         assert!(
-            res.unwrap_err()
-                .to_string()
+            err.to_string()
                 .contains("only expects digits 0-9 for numbers")
         );
+    }
+
+    #[test]
+    fn test_deserialize_f_array_wrong_length() {
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_array")]
+            inner: [ark_bn254::Fr; 3],
+        }
+
+        // Too few elements (2 instead of 3)
+        let json = r#"{"inner": ["1", "2"]}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+
+        // Too many elements (4 instead of 3)
+        let json = r#"{"inner": ["1", "2", "3", "4"]}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+
+        // Empty array when expecting 3
+        let json = r#"{"inner": []}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+    }
+
+    #[test]
+    fn test_deserialize_f_array_invalid_elements() {
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_array")]
+            inner: [ark_bn254::Fr; 2],
+        }
+
+        // Value >= modulus
+        let modulus: num_bigint::BigUint = ark_bn254::Fr::MODULUS.into();
+        let json = format!(r#"{{"inner": ["{}", "1"]}}"#, modulus);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("doesn't fit into field"));
+
+        // Negative value (unsigned rejects negatives)
+        let json = r#"{"inner": ["-1", "1"]}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("only expects positive numbers"));
+
+        // Non-numeric string
+        let json = r#"{"inner": ["abc", "1"]}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(
+            err.to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
+
+        // Number token instead of string
+        let json = r#"{"inner": [1, 2]}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("expected a string"));
+    }
+
+    #[test]
+    fn test_deserialize_f_array_signed_wrong_length() {
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_array_signed")]
+            inner: [ark_bn254::Fr; 3],
+        }
+
+        // Too few elements (2 instead of 3)
+        let json = r#"{"inner": ["1", "2"]}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+
+        // Too many elements (4 instead of 3)
+        let json = r#"{"inner": ["1", "2", "3", "4"]}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+
+        // Empty array when expecting 3
+        let json = r#"{"inner": []}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+    }
+
+    #[test]
+    fn test_deserialize_f_array_signed_invalid_elements() {
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_array_signed")]
+            inner: [ark_bn254::Fr; 2],
+        }
+
+        // Value >= modulus
+        let modulus: num_bigint::BigUint = ark_bn254::Fr::MODULUS.into();
+        let json = format!(r#"{{"inner": ["{}", "1"]}}"#, modulus);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("doesn't fit into field"));
+
+        // Negative value exceeding modulus (-(modulus + 1))
+        let modulus_plus_one = &modulus + num_bigint::BigUint::from(1u32);
+        let json = format!(r#"{{"inner": ["-{}", "1"]}}"#, modulus_plus_one);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("doesn't fit into field"));
+
+        // "-0" is not valid
+        let json = r#"{"inner": ["-0", "1"]}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("zero must be serialized as '0'"));
+
+        // Non-numeric string
+        let json = r#"{"inner": ["abc", "1"]}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(
+            err.to_string()
+                .contains("only expects digits 0-9 for numbers")
+        );
+    }
+
+    #[test]
+    fn test_deserialize_f_array_binary_wrong_length() {
+        #[derive(Serialize)]
+        struct SeqWrapper {
+            #[serde(serialize_with = "crate::serialize_f_seq")]
+            inner: Vec<ark_bn254::Fr>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_array")]
+            inner: [ark_bn254::Fr; 3],
+        }
+
+        let mut rng = rand::thread_rng();
+
+        // Too few elements (2 instead of 3)
+        let seq = SeqWrapper {
+            inner: (0..2).map(|_| rng.r#gen()).collect(),
+        };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+
+        // Too many elements (4 instead of 3)
+        let seq = SeqWrapper {
+            inner: (0..4).map(|_| rng.r#gen()).collect(),
+        };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+
+        // Empty vec when expecting 3
+        let seq = SeqWrapper { inner: vec![] };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+    }
+
+    #[test]
+    fn test_deserialize_f_array_binary_corrupted() {
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_array")]
+            inner: [ark_bn254::Fr; 3],
+        }
+
+        // Build a CBOR map {"inner": <garbage bytes>} using ciborium::Value
+        let garbage = vec![0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01];
+        let cbor_map = ciborium::Value::Map(vec![(
+            ciborium::Value::Text("inner".into()),
+            ciborium::Value::Bytes(garbage),
+        )]);
+        let mut buf = Vec::new();
+        ciborium::into_writer(&cbor_map, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+    }
+
+    #[test]
+    fn test_deserialize_f_array_signed_binary_wrong_length() {
+        #[derive(Serialize)]
+        struct SeqWrapper {
+            #[serde(serialize_with = "crate::serialize_f_seq")]
+            inner: Vec<ark_bn254::Fr>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_array_signed")]
+            inner: [ark_bn254::Fr; 3],
+        }
+
+        let mut rng = rand::thread_rng();
+
+        // Too few elements (2 instead of 3)
+        let seq = SeqWrapper {
+            inner: (0..2).map(|_| rng.r#gen()).collect(),
+        };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+
+        // Too many elements (4 instead of 3)
+        let seq = SeqWrapper {
+            inner: (0..4).map(|_| rng.r#gen()).collect(),
+        };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+
+        // Empty vec when expecting 3
+        let seq = SeqWrapper { inner: vec![] };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
     }
 }
 
@@ -570,5 +742,223 @@ mod babyjubjub_test {
             ciborium::from_reader(b.as_slice()).expect("can deserialize cbor");
         assert_eq!(should, ciborium);
         assert_eq!(should, json);
+    }
+
+    #[test]
+    fn test_deserialize_affine_array_wrong_length() {
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "babyjubjub::deserialize_affine_array")]
+            inner: [ark_babyjubjub::EdwardsAffine; 2],
+        }
+
+        let gen_x = "5299619240641551281634865583518297030282874472190772894086521144482721001553";
+        let gen_y = "16950150798460657717958625567821834550301663161624707787222815936182638968203";
+
+        // Too few points (1 instead of 2)
+        let json = format!(r#"{{"inner": [["{gen_x}", "{gen_y}"]]}}"#);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+
+        // Too many points (3 instead of 2)
+        let json = format!(
+            r#"{{"inner": [["{gen_x}", "{gen_y}"], ["{gen_x}", "{gen_y}"], ["{gen_x}", "{gen_y}"]]}}"#
+        );
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+
+        // Empty array when expecting 2
+        let json = r#"{"inner": []}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+    }
+
+    #[test]
+    fn test_deserialize_affine_array_invalid_points() {
+        use ark_ff::PrimeField;
+
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "babyjubjub::deserialize_affine_array")]
+            inner: [ark_babyjubjub::EdwardsAffine; 2],
+        }
+
+        let gen_x = "5299619240641551281634865583518297030282874472190772894086521144482721001553";
+        let gen_y = "16950150798460657717958625567821834550301663161624707787222815936182638968203";
+
+        // Non-numeric coordinate
+        let json = format!(r#"{{"inner": [["notanumber", "{gen_y}"], ["{gen_x}", "{gen_y}"]]}}"#);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(
+            err.to_string()
+                .contains("Invalid affine point on babyjubjub")
+        );
+
+        // Point not on the curve (x=1, y=1 is not on BabyJubJub)
+        let json = format!(r#"{{"inner": [["1", "1"], ["{gen_x}", "{gen_y}"]]}}"#);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(
+            err.to_string()
+                .contains("Invalid affine point on babyjubjub")
+        );
+
+        // Coordinate exceeding field modulus
+        let fq_modulus: num_bigint::BigUint = ark_babyjubjub::Fq::MODULUS.into();
+        let json = format!(r#"{{"inner": [["{fq_modulus}", "{gen_y}"], ["{gen_x}", "{gen_y}"]]}}"#);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(
+            err.to_string()
+                .contains("Invalid affine point on babyjubjub")
+        );
+
+        // Wrong coordinate count: only 1 coordinate instead of 2
+        let json = format!(r#"{{"inner": [["{gen_x}"], ["{gen_x}", "{gen_y}"]]}}"#);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length 1"));
+
+        // Wrong coordinate count: 3 coordinates instead of 2
+        let json =
+            format!(r#"{{"inner": [["{gen_x}", "{gen_y}", "{gen_x}"], ["{gen_x}", "{gen_y}"]]}}"#);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length 3"));
+    }
+
+    #[test]
+    fn test_deserialize_affine_array_unchecked_wrong_length() {
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "babyjubjub::deserialize_affine_array_unchecked")]
+            inner: [ark_babyjubjub::EdwardsAffine; 2],
+        }
+
+        let gen_x = "5299619240641551281634865583518297030282874472190772894086521144482721001553";
+        let gen_y = "16950150798460657717958625567821834550301663161624707787222815936182638968203";
+
+        // Too few points (1 instead of 2)
+        let json = format!(r#"{{"inner": [["{gen_x}", "{gen_y}"]]}}"#);
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+
+        // Too many points (3 instead of 2)
+        let json = format!(
+            r#"{{"inner": [["{gen_x}", "{gen_y}"], ["{gen_x}", "{gen_y}"], ["{gen_x}", "{gen_y}"]]}}"#
+        );
+        let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+
+        // Empty array when expecting 2
+        let json = r#"{"inner": []}"#;
+        let err = serde_json::from_str::<ArrayWrapper>(json).expect_err("Should be an error");
+        assert!(err.to_string().contains("invalid length"));
+    }
+
+    #[test]
+    fn test_deserialize_affine_array_binary_wrong_length() {
+        #[derive(Serialize)]
+        struct SeqWrapper {
+            #[serde(serialize_with = "babyjubjub::serialize_affine_seq")]
+            inner: Vec<ark_babyjubjub::EdwardsAffine>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "babyjubjub::deserialize_affine_array")]
+            inner: [ark_babyjubjub::EdwardsAffine; 2],
+        }
+
+        let mut rng = rand::thread_rng();
+
+        // Too few points (1 instead of 2)
+        let seq = SeqWrapper {
+            inner: (0..1).map(|_| rng.r#gen()).collect(),
+        };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+
+        // Too many points (3 instead of 2)
+        let seq = SeqWrapper {
+            inner: (0..3).map(|_| rng.r#gen()).collect(),
+        };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+
+        // Empty vec when expecting 2
+        let seq = SeqWrapper { inner: vec![] };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+    }
+
+    #[test]
+    fn test_deserialize_affine_array_binary_corrupted() {
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "babyjubjub::deserialize_affine_array")]
+            inner: [ark_babyjubjub::EdwardsAffine; 2],
+        }
+
+        // Build a CBOR map {"inner": <garbage bytes>} using ciborium::Value
+        let garbage = vec![0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01];
+        let cbor_map = ciborium::Value::Map(vec![(
+            ciborium::Value::Text("inner".into()),
+            ciborium::Value::Bytes(garbage),
+        )]);
+        let mut buf = Vec::new();
+        ciborium::into_writer(&cbor_map, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+    }
+
+    #[test]
+    fn test_deserialize_affine_array_unchecked_binary_wrong_length() {
+        #[derive(Serialize)]
+        struct SeqWrapper {
+            #[serde(serialize_with = "babyjubjub::serialize_affine_seq")]
+            inner: Vec<ark_babyjubjub::EdwardsAffine>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "babyjubjub::deserialize_affine_array_unchecked")]
+            inner: [ark_babyjubjub::EdwardsAffine; 2],
+        }
+
+        let mut rng = rand::thread_rng();
+
+        // Too few points (1 instead of 2)
+        let seq = SeqWrapper {
+            inner: (0..1).map(|_| rng.r#gen()).collect(),
+        };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+
+        // Too many points (3 instead of 2)
+        let seq = SeqWrapper {
+            inner: (0..3).map(|_| rng.r#gen()).collect(),
+        };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
+
+        // Empty vec when expecting 2
+        let seq = SeqWrapper { inner: vec![] };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice())
+            .expect_err("Should be an error");
     }
 }
