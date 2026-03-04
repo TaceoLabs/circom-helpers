@@ -26,6 +26,12 @@ mod bn254_tests {
         #[serde(serialize_with = "crate::serialize_f_seq")]
         #[serde(deserialize_with = "crate::deserialize_f_seq_signed")]
         fr_seq_signed: Vec<ark_bn254::Fr>,
+        #[serde(serialize_with = "crate::serialize_f_seq")]
+        #[serde(deserialize_with = "crate::deserialize_f_array")]
+        fr_array: [ark_bn254::Fr; 10],
+        #[serde(serialize_with = "crate::serialize_f_seq")]
+        #[serde(deserialize_with = "crate::deserialize_f_array_signed")]
+        fr_array_signed: [ark_bn254::Fr; 10],
         #[serde(serialize_with = "crate::serialize_f")]
         #[serde(deserialize_with = "crate::deserialize_f")]
         fq: ark_bn254::Fq,
@@ -55,6 +61,8 @@ mod bn254_tests {
                 fr_signed: r.r#gen(),
                 fr_seq: (0..10).map(|_| r.r#gen::<ark_bn254::Fr>()).collect(),
                 fr_seq_signed: (0..10).map(|_| r.r#gen()).collect(),
+                fr_array: r.r#gen(),
+                fr_array_signed: r.r#gen(),
                 fq: r.r#gen(),
                 fq_seq: (0..10).map(|_| r.r#gen()).collect(),
                 g1: r.r#gen(),
@@ -413,6 +421,12 @@ mod bls12_381_tests {
         #[serde(serialize_with = "crate::serialize_f_seq")]
         #[serde(deserialize_with = "crate::deserialize_f_seq_signed")]
         fr_seq_signed: Vec<ark_bls12_381::Fr>,
+        #[serde(serialize_with = "crate::serialize_f_seq")]
+        #[serde(deserialize_with = "crate::deserialize_f_array")]
+        fr_array: [ark_bls12_381::Fr; 10],
+        #[serde(serialize_with = "crate::serialize_f_seq")]
+        #[serde(deserialize_with = "crate::deserialize_f_array_signed")]
+        fr_array_signed: [ark_bls12_381::Fr; 10],
         #[serde(serialize_with = "crate::serialize_f")]
         #[serde(deserialize_with = "crate::deserialize_f")]
         fq: ark_bls12_381::Fq,
@@ -442,6 +456,8 @@ mod bls12_381_tests {
                 fr_signed: r.r#gen(),
                 fr_seq: (0..10).map(|_| r.r#gen()).collect(),
                 fr_seq_signed: (0..10).map(|_| r.r#gen()).collect(),
+                fr_array: r.r#gen(),
+                fr_array_signed: r.r#gen(),
                 fq: r.r#gen(),
                 fq_seq: (0..10).map(|_| r.r#gen()).collect(),
                 g1: r.r#gen(),
@@ -497,6 +513,12 @@ mod babyjubjub_test {
         #[serde(serialize_with = "crate::serialize_f_seq")]
         #[serde(deserialize_with = "crate::deserialize_f_seq_signed")]
         fr_seq_signed: Vec<ark_babyjubjub::Fr>,
+        #[serde(serialize_with = "crate::serialize_f_seq")]
+        #[serde(deserialize_with = "crate::deserialize_f_array")]
+        fr_array: [ark_babyjubjub::Fr; 10],
+        #[serde(serialize_with = "crate::serialize_f_seq")]
+        #[serde(deserialize_with = "crate::deserialize_f_array_signed")]
+        fr_array_signed: [ark_babyjubjub::Fr; 10],
         #[serde(serialize_with = "crate::serialize_f")]
         #[serde(deserialize_with = "crate::deserialize_f")]
         fq: ark_babyjubjub::Fq,
@@ -523,6 +545,8 @@ mod babyjubjub_test {
                 fr_signed: r.r#gen(),
                 fr_seq: (0..10).map(|_| r.r#gen()).collect(),
                 fr_seq_signed: (0..10).map(|_| r.r#gen()).collect(),
+                fr_array: r.r#gen(),
+                fr_array_signed: r.r#gen(),
                 fq: r.r#gen(),
                 fq_seq: (0..10).map(|_| r.r#gen()).collect(),
                 g2: r.r#gen(),
