@@ -270,6 +270,7 @@ where
 {
     let visitor = PrimeFieldSeqVisitor::<true, F> {
         phantom_data: PhantomData,
+        size: None,
     };
     if deserializer.is_human_readable() {
         deserializer.deserialize_seq(visitor)
@@ -305,12 +306,93 @@ where
 {
     let visitor = PrimeFieldSeqVisitor::<false, F> {
         phantom_data: PhantomData,
+        size: None,
     };
     if deserializer.is_human_readable() {
         deserializer.deserialize_seq(visitor)
     } else {
         deserializer.deserialize_bytes(visitor)
     }
+}
+
+/// Deserialize a fixed-size array of prime field elements.
+///
+/// For human-readable formats (JSON), deserializes from an array of decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
+/// Returns an error if the sequence does not contain exactly `LENGTH` elements.
+///
+/// # Example
+///
+/// ```ignore
+/// use serde::Deserialize;
+/// use ark_bn254::Fr;
+///
+/// #[derive(Deserialize)]
+/// struct MyStruct {
+///     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f_array")]
+///     fields: [Fr; 4],
+/// }
+/// ```
+pub fn deserialize_f_array<'de, const LENGTH: usize, D, F>(
+    deserializer: D,
+) -> Result<[F; LENGTH], D::Error>
+where
+    D: de::Deserializer<'de>,
+    F: PrimeField,
+{
+    let visitor = PrimeFieldSeqVisitor::<true, F> {
+        phantom_data: PhantomData,
+        size: Some(LENGTH),
+    };
+    let result = if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)?
+    } else {
+        deserializer.deserialize_bytes(visitor)?
+    }
+    .try_into()
+    .expect("Works if not an error");
+    Ok(result)
+}
+
+/// Deserialize a fixed-size array of prime field elements. Allows negative values and is consistent with Circom's negative value parsing. Will return an error if element is larger than modulus.
+///
+/// This adds malleability as (p-1) and 1 result in the same value due to the implementation of Circom, where a number (-x) is defined as p - x, where p is the modulus of the prime field.
+///
+/// For human-readable formats (JSON), deserializes from an array of decimal strings.
+/// For non-human readable formats (bincode, CBOR), uses `ark-serialize` with compressed mode.
+/// Returns an error if the sequence does not contain exactly `LENGTH` elements.
+///
+/// # Example
+///
+/// ```ignore
+/// use serde::Deserialize;
+/// use ark_bn254::Fr;
+///
+/// #[derive(Deserialize)]
+/// struct MyStruct {
+///     #[serde(deserialize_with = "taceo_ark_serde_compat::deserialize_f_array_signed")]
+///     fields: [Fr; 4],
+/// }
+/// ```
+pub fn deserialize_f_array_signed<'de, const LENGTH: usize, D, F>(
+    deserializer: D,
+) -> Result<[F; LENGTH], D::Error>
+where
+    D: de::Deserializer<'de>,
+    F: PrimeField,
+{
+    let visitor = PrimeFieldSeqVisitor::<false, F> {
+        phantom_data: PhantomData,
+        size: Some(LENGTH),
+    };
+    let result = if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)?
+    } else {
+        deserializer.deserialize_bytes(visitor)?
+    }
+    .try_into()
+    .expect("Works if not an error");
+    Ok(result)
 }
 
 /// Serialize a G1 affine point.
@@ -471,6 +553,7 @@ pub(crate) struct PrimeFieldVisitor<const UNSIGNED: bool, F> {
 #[derive(Default)]
 pub(crate) struct PrimeFieldSeqVisitor<const UNSIGNED: bool, F> {
     phantom_data: PhantomData<F>,
+    size: Option<usize>,
 }
 
 /// Deserialize a G1 affine point with full validation.
@@ -912,17 +995,30 @@ impl<'de, const UNSIGNED: bool, F: PrimeField> de::Visitor<'de>
     type Value = Vec<F>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str(&format!(
-            "a sequence of strings representing field elements in F_{}",
-            F::MODULUS
-        ))
+        if let Some(size) = self.size {
+            formatter.write_str(&format!(
+                "a sequence of strings representing field elements of length {size} in F_{}",
+                F::MODULUS
+            ))
+        } else {
+            formatter.write_str(&format!(
+                "a sequence of strings representing field elements in F_{}",
+                F::MODULUS
+            ))
+        }
     }
 
     fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        Self::Value::deserialize_compressed(v).map_err(|err| de::Error::custom(err.to_string()))
+        let values = Self::Value::deserialize_compressed(v)
+            .map_err(|err| de::Error::custom(err.to_string()))?;
+        if self.size.is_some_and(|size| size != values.len()) {
+            Err(de::Error::invalid_length(values.len(), &self))
+        } else {
+            Ok(values)
+        }
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -938,7 +1034,11 @@ impl<'de, const UNSIGNED: bool, F: PrimeField> de::Visitor<'de>
         while let Some(s) = seq.next_element::<String>()? {
             values.push(parse_field_str_inner::<UNSIGNED, F>(&s).map_err(A::Error::custom)?);
         }
-        Ok(values)
+        if self.size.is_some_and(|size| size != values.len()) {
+            Err(de::Error::invalid_length(values.len(), &self))
+        } else {
+            Ok(values)
+        }
     }
 }
 
