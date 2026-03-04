@@ -551,11 +551,11 @@ pub(crate) fn deser_array<'de, T, const LENGTH: usize, D, V>(
 ) -> Result<[T; LENGTH], D::Error>
 where
     D: de::Deserializer<'de>,
-    V: de::Visitor<'de, Value = Vec<T>>,
+    V: de::Visitor<'de, Value = Vec<T>> + Clone,
 {
-    deser_seq_or_bytes(deserializer, visitor)?
+    deser_seq_or_bytes(deserializer, visitor.clone())?
         .try_into()
-        .map_err(|_| de::Error::invalid_length(LENGTH, &"a sequence of the expected length"))
+        .map_err(|arr: Vec<_>| de::Error::invalid_length(arr.len(), &visitor))
 }
 
 #[derive(Default)]
@@ -563,7 +563,7 @@ pub(crate) struct PrimeFieldVisitor<const UNSIGNED: bool, F> {
     phantom_data: PhantomData<F>,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct PrimeFieldSeqVisitor<const UNSIGNED: bool, F> {
     phantom_data: PhantomData<F>,
     size: Option<usize>,
@@ -997,13 +997,7 @@ impl<'de, const UNSIGNED: bool, F: PrimeField> de::Visitor<'de>
     where
         E: de::Error,
     {
-        let values = Self::Value::deserialize_compressed(v)
-            .map_err(|err| de::Error::custom(err.to_string()))?;
-        if self.size.is_some_and(|size| size != values.len()) {
-            Err(de::Error::invalid_length(values.len(), &self))
-        } else {
-            Ok(values)
-        }
+        Self::Value::deserialize_compressed(v).map_err(|err| de::Error::custom(err.to_string()))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -1019,11 +1013,7 @@ impl<'de, const UNSIGNED: bool, F: PrimeField> de::Visitor<'de>
         while let Some(s) = seq.next_element::<String>()? {
             values.push(parse_field_str_inner::<UNSIGNED, F>(&s).map_err(A::Error::custom)?);
         }
-        if self.size.is_some_and(|size| size != values.len()) {
-            Err(de::Error::invalid_length(values.len(), &self))
-        } else {
-            Ok(values)
-        }
+        Ok(values)
     }
 }
 

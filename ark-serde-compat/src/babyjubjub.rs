@@ -224,6 +224,8 @@ fn affine_from_strings<const CHECK: bool>(
 }
 
 struct BabyJubJubAffineVisitor<const CHECK: bool>;
+
+#[derive(Clone)]
 struct BabyJubJubAffineSeqVisitor<const CHECK: bool> {
     size: Option<usize>,
 }
@@ -311,10 +313,6 @@ impl<'de, const CHECK: bool> de::Visitor<'de> for BabyJubJubAffineSeqVisitor<CHE
                 );
             }
         }
-        if self.size.is_some_and(|size| size != values.len()) {
-            Err(de::Error::invalid_length(values.len(), &self))
-        } else {
-            Ok(values)
-        }
+        Ok(values)
     }
 }
