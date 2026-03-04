@@ -126,11 +126,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineVisitor::<true>;
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    crate::deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a BabyJubJub affine point from an array of two coordinate strings without validation.
@@ -145,11 +141,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineVisitor::<false>;
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    crate::deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a sequence of BabyJubJub affine points from an array of coordinate pair arrays.
@@ -163,11 +155,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineSeqVisitor::<true> { size: None };
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    crate::deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a sequence of BabyJubJub affine points from an array of coordinate pair arrays without validation.
@@ -182,11 +170,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineSeqVisitor::<false> { size: None };
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    crate::deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize am array of BabyJubJub affine points from an array of coordinate pair arrays.
@@ -201,14 +185,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineSeqVisitor::<true> { size: Some(LENGTH) };
-    let result = if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)?
-    } else {
-        deserializer.deserialize_bytes(visitor)?
-    }
-    .try_into()
-    .expect("Works if not an error");
-    Ok(result)
+    crate::deser_array(deserializer, visitor)
 }
 
 /// Deserialize am array of BabyJubJub affine points from an array of coordinate pair arrays.
@@ -224,14 +201,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineSeqVisitor::<false> { size: Some(LENGTH) };
-    let result = if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)?
-    } else {
-        deserializer.deserialize_bytes(visitor)?
-    }
-    .try_into()
-    .expect("Works if not an error");
-    Ok(result)
+    crate::deser_array(deserializer, visitor)
 }
 
 fn affine_from_strings<const CHECK: bool>(

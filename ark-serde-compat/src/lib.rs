@@ -272,11 +272,7 @@ where
         phantom_data: PhantomData,
         size: None,
     };
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a sequence of prime field elements. Allows negative values and is consistent with Circom's negative value parsing. Will return an error if element is larger than modulus.
@@ -308,11 +304,7 @@ where
         phantom_data: PhantomData,
         size: None,
     };
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a fixed-size array of prime field elements.
@@ -344,14 +336,7 @@ where
         phantom_data: PhantomData,
         size: Some(LENGTH),
     };
-    let result = if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)?
-    } else {
-        deserializer.deserialize_bytes(visitor)?
-    }
-    .try_into()
-    .expect("Works if not an error");
-    Ok(result)
+    deser_array(deserializer, visitor)
 }
 
 /// Deserialize a fixed-size array of prime field elements. Allows negative values and is consistent with Circom's negative value parsing. Will return an error if element is larger than modulus.
@@ -385,14 +370,7 @@ where
         phantom_data: PhantomData,
         size: Some(LENGTH),
     };
-    let result = if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)?
-    } else {
-        deserializer.deserialize_bytes(visitor)?
-    }
-    .try_into()
-    .expect("Works if not an error");
-    Ok(result)
+    deser_array(deserializer, visitor)
 }
 
 /// Serialize a G1 affine point.
@@ -545,6 +523,41 @@ fn g1_to_strings_projective(p: &impl AffineRepr) -> [String; 3] {
     }
 }
 
+/// Dispatches deserialization to `deserialize_seq` for human-readable formats and
+/// `deserialize_bytes` for non-human-readable formats.
+#[inline]
+pub(crate) fn deser_seq_or_bytes<'de, D, V>(
+    deserializer: D,
+    visitor: V,
+) -> Result<V::Value, D::Error>
+where
+    D: de::Deserializer<'de>,
+    V: de::Visitor<'de>,
+{
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_seq(visitor)
+    } else {
+        deserializer.deserialize_bytes(visitor)
+    }
+}
+
+/// Dispatches deserialization and converts the resulting `Vec<T>` into a `[T; LENGTH]` array.
+///
+/// Returns an error if the deserialized length does not match `LENGTH`.
+#[inline]
+pub(crate) fn deser_array<'de, T, const LENGTH: usize, D, V>(
+    deserializer: D,
+    visitor: V,
+) -> Result<[T; LENGTH], D::Error>
+where
+    D: de::Deserializer<'de>,
+    V: de::Visitor<'de, Value = Vec<T>>,
+{
+    deser_seq_or_bytes(deserializer, visitor)?
+        .try_into()
+        .map_err(|_| de::Error::invalid_length(LENGTH, &"a sequence of the expected length"))
+}
+
 #[derive(Default)]
 pub(crate) struct PrimeFieldVisitor<const UNSIGNED: bool, F> {
     phantom_data: PhantomData<F>,
@@ -578,11 +591,7 @@ where
     G1: SWCurveConfig<BaseField = F>,
 {
     let visitor = G1Visitor::<true, _, _>(PhantomData);
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a G1 affine point without validation.
@@ -606,11 +615,7 @@ where
     G1: SWCurveConfig<BaseField = F>,
 {
     let visitor = G1Visitor::<false, _, _>(PhantomData);
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a G2 affine point with full validation.
@@ -636,11 +641,7 @@ where
     G2: SWCurveConfig<BaseField = QuadExtField<Q>>,
 {
     let visitor = G2Visitor::<true, _, _, _>(PhantomData);
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a G2 affine point without validation.
@@ -666,11 +667,7 @@ where
     G2: SWCurveConfig<BaseField = QuadExtField<Q>>,
 {
     let visitor = G2Visitor::<false, _, _, _>(PhantomData);
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    deser_seq_or_bytes(deserializer, visitor)
 }
 /// Deserialize a target group (GT/Fq12) element.
 ///
@@ -696,11 +693,7 @@ where
     Fp12: QuadExtConfig<BaseField = CubicExtField<Fp6>>,
 {
     let visitor = GtVisitor(PhantomData);
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a sequence of G1 affine points with full validation.
@@ -725,11 +718,7 @@ where
     G1: SWCurveConfig<BaseField = F>,
 {
     let visitor = G1SeqVisitor::<true, _, _>(PhantomData);
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    deser_seq_or_bytes(deserializer, visitor)
 }
 
 /// Deserialize a sequence of G1 affine points without validation.
@@ -756,11 +745,7 @@ where
     G1: SWCurveConfig<BaseField = F>,
 {
     let visitor = G1SeqVisitor::<false, _, _>(PhantomData);
-    if deserializer.is_human_readable() {
-        deserializer.deserialize_seq(visitor)
-    } else {
-        deserializer.deserialize_bytes(visitor)
-    }
+    deser_seq_or_bytes(deserializer, visitor)
 }
 
 impl<'de, const CHECK: bool, G1, F> de::Visitor<'de> for G1Visitor<CHECK, F, G1>
