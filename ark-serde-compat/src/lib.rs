@@ -1,5 +1,34 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 #![deny(missing_docs)]
+#![deny(clippy::all, clippy::pedantic)]
+#![deny(
+    clippy::allow_attributes_without_reason,
+    clippy::assertions_on_result_states,
+    clippy::dbg_macro,
+    clippy::decimal_literal_representation,
+    clippy::exhaustive_enums,
+    clippy::iter_over_hash_type,
+    clippy::let_underscore_must_use,
+    clippy::missing_assert_message,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::undocumented_unsafe_blocks,
+    clippy::unnecessary_safety_comment,
+    clippy::unwrap_used
+)]
+#![allow(
+    clippy::missing_errors_doc,
+    reason = "We allow missing error sections in this crate"
+)]
+#![allow(
+    clippy::needless_pass_by_value,
+    reason = "We want to consume most of the time as only internal helpers"
+)]
+#![allow(
+    clippy::doc_markdown,
+    reason = "We allow BabyJubJub to not be in backticks"
+)]
+
 use std::str::FromStr;
 use std::{fmt, marker::PhantomData};
 
@@ -101,8 +130,8 @@ pub trait CanonicalJsonSerialize: Pairing {
 }
 
 // Silence the error in case we use no features
-#[allow(unused)]
 #[derive(Debug)]
+#[allow(unused, reason = "Can be unused if we turn of all features")]
 pub(crate) struct SerdeCompatError(&'static str);
 
 impl fmt::Display for SerdeCompatError {
@@ -117,6 +146,10 @@ impl fmt::Display for SerdeCompatError {
 /// faster, but could potentially result in undefined behaviour. Use
 /// only with care.
 #[derive(Debug, Clone, Copy)]
+#[allow(
+    clippy::exhaustive_enums,
+    reason = "Doesn't need to be exhaustive as this is binary"
+)]
 pub enum CheckElement {
     /// Indicates to perform curve checks
     Yes,
@@ -949,7 +982,7 @@ where
     F: PrimeField,
     G1: SWCurveConfig<BaseField = F>;
 
-impl<'de, const UNSIGNED: bool, F: PrimeField> de::Visitor<'de> for PrimeFieldVisitor<UNSIGNED, F> {
+impl<const UNSIGNED: bool, F: PrimeField> de::Visitor<'_> for PrimeFieldVisitor<UNSIGNED, F> {
     type Value = F;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -1078,13 +1111,13 @@ where
     Fp2: QuadExtConfig<BaseField = F>,
     Fp6: CubicExtConfig<BaseField = QuadExtField<Fp2>>,
 {
-    if strings.len() != 3 {
-        Err(SerdeCompatError("expected cubic extension field"))
-    } else {
+    if strings.len() == 3 {
         let c0 = quadratic_extension_field_from_vec(&strings[0])?;
         let c1 = quadratic_extension_field_from_vec(&strings[1])?;
         let c2 = quadratic_extension_field_from_vec(&strings[2])?;
         Ok(CubicExtField::new(c0, c1, c2))
+    } else {
+        Err(SerdeCompatError("expected cubic extension field"))
     }
 }
 
@@ -1099,12 +1132,12 @@ where
     F: PrimeField,
     Fp2: QuadExtConfig<BaseField = F>,
 {
-    if strings.len() != 2 {
-        Err(SerdeCompatError("expected quadratic extension field"))
-    } else {
+    if strings.len() == 2 {
         let c0 = parse_field_str_inner_unsigned(&strings[0])?;
         let c1 = parse_field_str_inner_unsigned(&strings[1])?;
         Ok(QuadExtField::new(c0, c1))
+    } else {
+        Err(SerdeCompatError("expected quadratic extension field"))
     }
 }
 
@@ -1140,15 +1173,15 @@ where
         let mut values = vec![];
         while let Some(point) = seq.next_element::<Vec<String>>()? {
             //check if there are no more elements
-            if point.len() != 3 {
-                return Err(de::Error::invalid_length(point.len(), &self));
-            } else {
+            if point.len() == 3 {
                 values.push(
                     g1_from_strings_projective::<CHECK, _, _>(&point[0], &point[1], &point[2])
                         .map_err(|_| {
                             de::Error::custom("Invalid projective point on G1.".to_owned())
                         })?,
                 );
+            } else {
+                return Err(de::Error::invalid_length(point.len(), &self));
             }
         }
         Ok(values)
@@ -1186,7 +1219,7 @@ fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
     if number.is_zero() && v != "0" {
         return Err(SerdeCompatError("zero must be serialized as '0'"));
     }
-    if v.starts_with("0") && !number.is_zero() {
+    if v.starts_with('0') && !number.is_zero() {
         return Err(SerdeCompatError("invalid leading zeros for number"));
     }
     if !UNSIGNED && number.sign() == Sign::Minus {
@@ -1209,11 +1242,11 @@ fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
     let number = num_bigint::BigUint::try_from(number).expect("Works due to checks above");
     // this should never happen for the fields we implement
     let number = F::BigInt::try_from(number)
-        .map_err(|_| SerdeCompatError("Cannot convert to underlying BigInt again"))?;
+        .map_err(|()| SerdeCompatError("Cannot convert to underlying BigInt again"))?;
     Ok(F::from_bigint(number).expect("Is some due to checks above"))
 }
 
-#[inline(always)]
+#[inline]
 fn parse_field_str_inner_unsigned<F: PrimeField>(v: &str) -> Result<F, SerdeCompatError> {
     parse_field_str_inner::<true, F>(v)
 }

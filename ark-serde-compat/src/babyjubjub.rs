@@ -305,13 +305,12 @@ impl<'de, const CHECK: bool> de::Visitor<'de> for BabyJubJubAffineSeqVisitor<CHE
             //check if there are no more elements
             if point.len() != 2 {
                 return Err(de::Error::invalid_length(point.len(), &self));
-            } else {
-                values.push(
-                    affine_from_strings::<CHECK>(&point[0], &point[1]).map_err(|_| {
-                        de::Error::custom("Invalid affine point on babyjubjub.".to_owned())
-                    })?,
-                );
             }
+            values.push(
+                affine_from_strings::<CHECK>(&point[0], &point[1]).map_err(|_| {
+                    de::Error::custom("Invalid affine point on babyjubjub.".to_owned())
+                })?,
+            );
         }
         Ok(values)
     }
