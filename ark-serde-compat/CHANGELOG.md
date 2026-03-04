@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.4.1...taceo-ark-serde-compat-v0.4.2)
+
+### ⛰️ Features
+
+
+- Add deserialize_f_array and deserialize_f_array_signed - ([3ea30eb](https://github.com/TaceoLabs/circom-helpers/commit/3ea30eb3555f4ff0c2bb9f5c7397892f5f747683))
+
+### 🚜 Refactor
+
+
+- Move length check for array to calling function - ([278f57f](https://github.com/TaceoLabs/circom-helpers/commit/278f57f1bddd4ccf3bb8d7c6f14ee0ee47ff343d))
+- Extract deser_seq_or_bytes and deser_array helpers - ([45248bf](https://github.com/TaceoLabs/circom-helpers/commit/45248bf48e73056ad5f85e8a7ddcb82bdf55f9c2))
+
+### 🧪 Testing
+
+
+- Restructure and add more negative tests - ([6a02a5f](https://github.com/TaceoLabs/circom-helpers/commit/6a02a5f5a0c0667ae4c2527f1e10e9a01d881ad1))
+- Add deserialize_f_array and deserialize_f_array_signed to roundtrip tests - ([0623d0a](https://github.com/TaceoLabs/circom-helpers/commit/0623d0a9fe3c030476cdc6a6384ba9a7f1f5e6ed))
+
+### ⚙️ Miscellaneous Tasks
+
+
+- Add prod clippy lints - ([e90e7a2](https://github.com/TaceoLabs/circom-helpers/commit/e90e7a2f12296cb248e6384fe5e561ecf143343e))
+
+
 ## [0.4.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.4.0...taceo-ark-serde-compat-v0.4.1)
 
 ### 🐛 Bug Fixes

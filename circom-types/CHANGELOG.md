@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.2.2...taceo-circom-types-v0.2.3)
+
+### ⚙️ Miscellaneous Tasks
+
+
+- Updated the following local packages: taceo-ark-serde-compat - ([0000000](https://github.com/TaceoLabs/circom-helpers/commit/0000000))
+
+
 ## [0.2.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.2.1...taceo-circom-types-v0.2.2)
 
 ### 🐛 Bug Fixes
