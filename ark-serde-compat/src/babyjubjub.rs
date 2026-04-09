@@ -1,11 +1,13 @@
 //! Serialization and deserialization functions for BabyJubJub curve types.
 //!
 //! This module provides serde-compatible serialization and deserialization functions
-//! for BabyJubJub curve types, including field elements (Fr, Fq) and curve points
-//! (EdwardsAffine).
+//! for BabyJubJub curve points (`EdwardsAffine`).
 //!
-//! All field elements are serialized as decimal strings. Curve points are serialized
-//! in affine coordinates as arrays of two coordinate strings.
+//! For field elements (`Fr`, `Fq`), use the generic top-level functions
+//! [`serialize_f`](crate::serialize_f), [`deserialize_f`](crate::deserialize_f),
+//! or the [`field`](crate::field) `serde(with)` module — they work with any `PrimeField`.
+//!
+//! Curve points are serialized in affine coordinates as arrays of two coordinate strings.
 
 use ark_serialize::{CanonicalDeserialize as _, CanonicalSerialize as _, Compress};
 use serde::ser::Error;
@@ -16,30 +18,6 @@ use serde::{
 };
 
 use crate::SerdeCompatError;
-
-/// Serialize a BabyJubJub Fr (scalar field) element as a decimal string.
-///
-/// The Fr field element is serialized to its decimal string representation.
-pub fn serialize_fr<S: Serializer>(f: &ark_babyjubjub::Fr, ser: S) -> Result<S::Ok, S::Error> {
-    super::serialize_f(f, ser)
-}
-
-/// Serialize a BabyJubJub Fq (base field) element as a decimal string.
-///
-/// The Fq field element is serialized to its decimal string representation.
-pub fn serialize_fq<S: Serializer>(f: &ark_babyjubjub::Fq, ser: S) -> Result<S::Ok, S::Error> {
-    super::serialize_f(f, ser)
-}
-
-/// Serialize a sequence of BabyJubJub Fq elements as an array of decimal strings.
-///
-/// Each Fq element is serialized as a decimal string.
-pub fn serialize_fq_seq<S: Serializer>(
-    ps: &[ark_babyjubjub::Fq],
-    ser: S,
-) -> Result<S::Ok, S::Error> {
-    super::serialize_f_seq(ps, ser)
-}
 
 /// Serialize a BabyJubJub affine point as an array of two coordinate strings.
 ///
@@ -83,36 +61,6 @@ pub fn serialize_affine_seq<S: Serializer>(
             .map_err(|_| S::Error::custom("cannot canonical serialize element"))?;
         ser.serialize_bytes(&bytes)
     }
-}
-
-/// Deserialize a BabyJubJub Fr (scalar field) element from a decimal string.
-///
-/// The Fr field element is deserialized from its decimal string representation.
-pub fn deserialize_fr<'de, D>(deserializer: D) -> Result<ark_babyjubjub::Fr, D::Error>
-where
-    D: de::Deserializer<'de>,
-{
-    super::deserialize_f(deserializer)
-}
-
-/// Deserialize a BabyJubJub Fq (base field) element from a decimal string.
-///
-/// The Fq field element is deserialized from its decimal string representation.
-pub fn deserialize_fq<'de, D>(deserializer: D) -> Result<ark_babyjubjub::Fq, D::Error>
-where
-    D: de::Deserializer<'de>,
-{
-    super::deserialize_f(deserializer)
-}
-
-/// Deserialize a sequence of BabyJubJub Fq elements from an array of decimal strings.
-///
-/// Each Fq element is deserialized from its decimal string representation.
-pub fn deserialize_fq_seq<'de, D>(deserializer: D) -> Result<Vec<ark_babyjubjub::Fq>, D::Error>
-where
-    D: de::Deserializer<'de>,
-{
-    super::deserialize_f_seq(deserializer)
 }
 
 /// Deserialize a BabyJubJub affine point from an array of two coordinate strings.
@@ -313,80 +261,6 @@ impl<'de, const CHECK: bool> de::Visitor<'de> for BabyJubJubAffineSeqVisitor<CHE
             );
         }
         Ok(values)
-    }
-}
-
-/// Module for use with `#[serde(with = "babyjubjub::fr")]` for BabyJubJub Fr elements.
-pub mod fr {
-    use serde::{Serializer, de};
-
-    /// Serialize a BabyJubJub Fr element.
-    pub fn serialize<S: Serializer>(f: &ark_babyjubjub::Fr, ser: S) -> Result<S::Ok, S::Error> {
-        super::serialize_fr(f, ser)
-    }
-
-    /// Deserialize a BabyJubJub Fr element (unsigned).
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::Fr, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        super::deserialize_fr(deserializer)
-    }
-}
-
-/// Module for use with `#[serde(with = "babyjubjub::fr_signed")]` for signed BabyJubJub Fr elements.
-///
-/// Allows negative values consistent with Circom's negative value parsing.
-pub mod fr_signed {
-    use serde::{Serializer, de};
-
-    /// Serialize a BabyJubJub Fr element.
-    pub fn serialize<S: Serializer>(f: &ark_babyjubjub::Fr, ser: S) -> Result<S::Ok, S::Error> {
-        super::serialize_fr(f, ser)
-    }
-
-    /// Deserialize a signed BabyJubJub Fr element.
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::Fr, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        crate::deserialize_f_signed(deserializer)
-    }
-}
-
-/// Module for use with `#[serde(with = "babyjubjub::fq")]` for BabyJubJub Fq elements.
-pub mod fq {
-    use serde::{Serializer, de};
-
-    /// Serialize a BabyJubJub Fq element.
-    pub fn serialize<S: Serializer>(f: &ark_babyjubjub::Fq, ser: S) -> Result<S::Ok, S::Error> {
-        super::serialize_fq(f, ser)
-    }
-
-    /// Deserialize a BabyJubJub Fq element (unsigned).
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::Fq, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        super::deserialize_fq(deserializer)
-    }
-}
-
-/// Module for use with `#[serde(with = "babyjubjub::fq_seq")]` for sequences of BabyJubJub Fq elements.
-pub mod fq_seq {
-    use serde::{Serializer, de};
-
-    /// Serialize a sequence of BabyJubJub Fq elements.
-    pub fn serialize<S: Serializer>(ps: &[ark_babyjubjub::Fq], ser: S) -> Result<S::Ok, S::Error> {
-        super::serialize_fq_seq(ps, ser)
-    }
-
-    /// Deserialize a sequence of BabyJubJub Fq elements.
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<ark_babyjubjub::Fq>, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        super::deserialize_fq_seq(deserializer)
     }
 }
 
