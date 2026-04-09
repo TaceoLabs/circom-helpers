@@ -315,3 +315,175 @@ impl<'de, const CHECK: bool> de::Visitor<'de> for BabyJubJubAffineSeqVisitor<CHE
         Ok(values)
     }
 }
+
+/// Module for use with `#[serde(with = "babyjubjub::fr")]` for BabyJubJub Fr elements.
+pub mod fr {
+    use serde::{Serializer, de};
+
+    /// Serialize a BabyJubJub Fr element.
+    pub fn serialize<S: Serializer>(f: &ark_babyjubjub::Fr, ser: S) -> Result<S::Ok, S::Error> {
+        super::serialize_fr(f, ser)
+    }
+
+    /// Deserialize a BabyJubJub Fr element (unsigned).
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::Fr, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        super::deserialize_fr(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "babyjubjub::fr_signed")]` for signed BabyJubJub Fr elements.
+///
+/// Allows negative values consistent with Circom's negative value parsing.
+pub mod fr_signed {
+    use serde::{Serializer, de};
+
+    /// Serialize a BabyJubJub Fr element.
+    pub fn serialize<S: Serializer>(f: &ark_babyjubjub::Fr, ser: S) -> Result<S::Ok, S::Error> {
+        super::serialize_fr(f, ser)
+    }
+
+    /// Deserialize a signed BabyJubJub Fr element.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::Fr, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        crate::deserialize_f_signed(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "babyjubjub::fq")]` for BabyJubJub Fq elements.
+pub mod fq {
+    use serde::{Serializer, de};
+
+    /// Serialize a BabyJubJub Fq element.
+    pub fn serialize<S: Serializer>(f: &ark_babyjubjub::Fq, ser: S) -> Result<S::Ok, S::Error> {
+        super::serialize_fq(f, ser)
+    }
+
+    /// Deserialize a BabyJubJub Fq element (unsigned).
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::Fq, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        super::deserialize_fq(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "babyjubjub::fq_seq")]` for sequences of BabyJubJub Fq elements.
+pub mod fq_seq {
+    use serde::{Serializer, de};
+
+    /// Serialize a sequence of BabyJubJub Fq elements.
+    pub fn serialize<S: Serializer>(ps: &[ark_babyjubjub::Fq], ser: S) -> Result<S::Ok, S::Error> {
+        super::serialize_fq_seq(ps, ser)
+    }
+
+    /// Deserialize a sequence of BabyJubJub Fq elements.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<ark_babyjubjub::Fq>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        super::deserialize_fq_seq(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "babyjubjub::affine")]` for BabyJubJub EdwardsAffine points.
+///
+/// Performs full curve and subgroup validation on deserialization.
+pub mod affine {
+    use serde::{Serializer, de};
+
+    /// Serialize a BabyJubJub affine point.
+    pub fn serialize<S: Serializer>(
+        p: &ark_babyjubjub::EdwardsAffine,
+        ser: S,
+    ) -> Result<S::Ok, S::Error> {
+        super::serialize_affine(p, ser)
+    }
+
+    /// Deserialize a BabyJubJub affine point with full validation.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::EdwardsAffine, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        super::deserialize_affine(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "babyjubjub::affine_unchecked")]` for BabyJubJub EdwardsAffine points without validation.
+///
+/// **Does not** validate that the point is on the curve or in the correct subgroup.
+/// Use only with trusted input.
+pub mod affine_unchecked {
+    use serde::{Serializer, de};
+
+    /// Serialize a BabyJubJub affine point.
+    pub fn serialize<S: Serializer>(
+        p: &ark_babyjubjub::EdwardsAffine,
+        ser: S,
+    ) -> Result<S::Ok, S::Error> {
+        super::serialize_affine(p, ser)
+    }
+
+    /// Deserialize a BabyJubJub affine point without validation.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::EdwardsAffine, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        super::deserialize_affine_unchecked(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "babyjubjub::affine_seq")]` for sequences of BabyJubJub EdwardsAffine points.
+///
+/// Performs full curve and subgroup validation on deserialization.
+pub mod affine_seq {
+    use serde::{Serializer, de};
+
+    /// Serialize a sequence of BabyJubJub affine points.
+    pub fn serialize<S: Serializer>(
+        ps: &[ark_babyjubjub::EdwardsAffine],
+        ser: S,
+    ) -> Result<S::Ok, S::Error> {
+        super::serialize_affine_seq(ps, ser)
+    }
+
+    /// Deserialize a sequence of BabyJubJub affine points with full validation.
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Vec<ark_babyjubjub::EdwardsAffine>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        super::deserialize_affine_seq(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "babyjubjub::affine_seq_unchecked")]` for sequences of BabyJubJub EdwardsAffine points without validation.
+///
+/// **Does not** validate that the points are on the curve or in the correct subgroup.
+/// Use only with trusted input.
+pub mod affine_seq_unchecked {
+    use serde::{Serializer, de};
+
+    /// Serialize a sequence of BabyJubJub affine points.
+    pub fn serialize<S: Serializer>(
+        ps: &[ark_babyjubjub::EdwardsAffine],
+        ser: S,
+    ) -> Result<S::Ok, S::Error> {
+        super::serialize_affine_seq(ps, ser)
+    }
+
+    /// Deserialize a sequence of BabyJubJub affine points without validation.
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Vec<ark_babyjubjub::EdwardsAffine>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        super::deserialize_affine_seq_unchecked(deserializer)
+    }
+}

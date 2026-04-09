@@ -254,6 +254,157 @@ macro_rules! impl_json_canonical {
             {
                 super::deserialize_g1_seq_unchecked(deserializer)
             }
+
+            /// Module for use with `#[serde(with = "...")]` for G1 affine points with full validation.
+            pub mod g1 {
+                use serde::{Serializer, de};
+
+                /// Serialize a G1 affine point.
+                pub fn serialize<S: Serializer>(
+                    p: &$curve::G1Affine,
+                    ser: S,
+                ) -> Result<S::Ok, S::Error> {
+                    super::serialize_g1(p, ser)
+                }
+
+                /// Deserialize a G1 affine point with full validation.
+                pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::G1Affine, D::Error>
+                where
+                    D: de::Deserializer<'de>,
+                {
+                    super::deserialize_g1(deserializer)
+                }
+            }
+
+            /// Module for use with `#[serde(with = "...")]` for G1 affine points without validation.
+            pub mod g1_unchecked {
+                use serde::{Serializer, de};
+
+                /// Serialize a G1 affine point.
+                pub fn serialize<S: Serializer>(
+                    p: &$curve::G1Affine,
+                    ser: S,
+                ) -> Result<S::Ok, S::Error> {
+                    super::serialize_g1(p, ser)
+                }
+
+                /// Deserialize a G1 affine point without validation.
+                pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::G1Affine, D::Error>
+                where
+                    D: de::Deserializer<'de>,
+                {
+                    super::deserialize_g1_unchecked(deserializer)
+                }
+            }
+
+            /// Module for use with `#[serde(with = "...")]` for G2 affine points with full validation.
+            pub mod g2 {
+                use serde::{Serializer, de};
+
+                /// Serialize a G2 affine point.
+                pub fn serialize<S: Serializer>(
+                    p: &$curve::G2Affine,
+                    ser: S,
+                ) -> Result<S::Ok, S::Error> {
+                    super::serialize_g2(p, ser)
+                }
+
+                /// Deserialize a G2 affine point with full validation.
+                pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::G2Affine, D::Error>
+                where
+                    D: de::Deserializer<'de>,
+                {
+                    super::deserialize_g2(deserializer)
+                }
+            }
+
+            /// Module for use with `#[serde(with = "...")]` for G2 affine points without validation.
+            pub mod g2_unchecked {
+                use serde::{Serializer, de};
+
+                /// Serialize a G2 affine point.
+                pub fn serialize<S: Serializer>(
+                    p: &$curve::G2Affine,
+                    ser: S,
+                ) -> Result<S::Ok, S::Error> {
+                    super::serialize_g2(p, ser)
+                }
+
+                /// Deserialize a G2 affine point without validation.
+                pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::G2Affine, D::Error>
+                where
+                    D: de::Deserializer<'de>,
+                {
+                    super::deserialize_g2_unchecked(deserializer)
+                }
+            }
+
+            /// Module for use with `#[serde(with = "...")]` for GT (Fq12) elements.
+            pub mod gt {
+                use serde::{Serializer, de};
+
+                /// Serialize a GT element.
+                pub fn serialize<S: Serializer>(
+                    p: &$curve::Fq12,
+                    ser: S,
+                ) -> Result<S::Ok, S::Error> {
+                    super::serialize_gt(p, ser)
+                }
+
+                /// Deserialize a GT element.
+                pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::Fq12, D::Error>
+                where
+                    D: de::Deserializer<'de>,
+                {
+                    super::deserialize_gt(deserializer)
+                }
+            }
+
+            /// Module for use with `#[serde(with = "...")]` for sequences of G1 affine points with full validation.
+            pub mod g1_seq {
+                use serde::{Serializer, de};
+
+                /// Serialize a sequence of G1 affine points.
+                pub fn serialize<S: Serializer>(
+                    ps: &[$curve::G1Affine],
+                    ser: S,
+                ) -> Result<S::Ok, S::Error> {
+                    super::serialize_g1_seq(ps, ser)
+                }
+
+                /// Deserialize a sequence of G1 affine points with full validation.
+                pub fn deserialize<'de, D>(
+                    deserializer: D,
+                ) -> Result<Vec<$curve::G1Affine>, D::Error>
+                where
+                    D: de::Deserializer<'de>,
+                {
+                    super::deserialize_g1_seq(deserializer)
+                }
+            }
+
+            /// Module for use with `#[serde(with = "...")]` for sequences of G1 affine points without validation.
+            pub mod g1_seq_unchecked {
+                use serde::{Serializer, de};
+
+                /// Serialize a sequence of G1 affine points.
+                pub fn serialize<S: Serializer>(
+                    ps: &[$curve::G1Affine],
+                    ser: S,
+                ) -> Result<S::Ok, S::Error> {
+                    super::serialize_g1_seq(ps, ser)
+                }
+
+                /// Deserialize a sequence of G1 affine points without validation.
+                pub fn deserialize<'de, D>(
+                    deserializer: D,
+                ) -> Result<Vec<$curve::G1Affine>, D::Error>
+                where
+                    D: de::Deserializer<'de>,
+                {
+                    super::deserialize_g1_seq_unchecked(deserializer)
+                }
+            }
         }
     };
 }
