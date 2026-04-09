@@ -1103,13 +1103,13 @@ mod babyjubjub_test {
 
     #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
     struct SerializableWith {
-        #[serde(with = "babyjubjub::fr")]
+        #[serde(with = "crate::field")]
         fr: ark_babyjubjub::Fr,
-        #[serde(with = "babyjubjub::fr_signed")]
+        #[serde(with = "crate::field_signed")]
         fr_signed: ark_babyjubjub::Fr,
         #[serde(with = "crate::field")]
         fq: ark_babyjubjub::Fq,
-        #[serde(with = "babyjubjub::fq_seq")]
+        #[serde(with = "crate::field_seq")]
         fq_seq: Vec<ark_babyjubjub::Fq>,
         #[serde(with = "babyjubjub::affine")]
         affine: ark_babyjubjub::EdwardsAffine,
