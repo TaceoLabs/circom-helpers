@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.5](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.2.4...taceo-groth16-material-v0.2.5)
+
+### ⚙️ Miscellaneous Tasks
+
+
+- Updated the following local packages: taceo-circom-types - ([0000000](https://github.com/TaceoLabs/circom-helpers/commit/0000000))
+
+
 ## [0.2.4](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.2.3...taceo-groth16-material-v0.2.4)
 
 ### ⚙️ Miscellaneous Tasks
