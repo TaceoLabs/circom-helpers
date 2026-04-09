@@ -578,6 +578,63 @@ mod bn254_tests {
         ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
         ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice()).expect_err("Should be an error");
     }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+    struct SerializableWith {
+        #[serde(with = "crate::field")]
+        fr: ark_bn254::Fr,
+        #[serde(with = "crate::field_signed")]
+        fr_signed: ark_bn254::Fr,
+        #[serde(with = "crate::field_seq")]
+        fr_seq: Vec<ark_bn254::Fr>,
+        #[serde(with = "crate::field_seq_signed")]
+        fr_seq_signed: Vec<ark_bn254::Fr>,
+        #[serde(with = "crate::field")]
+        fq: ark_bn254::Fq,
+        #[serde(with = "crate::field_seq")]
+        fq_seq: Vec<ark_bn254::Fq>,
+        #[serde(with = "bn254::g1")]
+        g1: ark_bn254::G1Affine,
+        #[serde(with = "bn254::g1_seq")]
+        g1_seq: Vec<ark_bn254::G1Affine>,
+        #[serde(with = "bn254::g2")]
+        g2: ark_bn254::G2Affine,
+        #[serde(with = "bn254::gt")]
+        gt: ark_bn254::Fq12,
+    }
+
+    impl SerializableWith {
+        fn rand<R: Rng>(r: &mut R) -> Self {
+            Self {
+                fr: r.r#gen(),
+                fr_signed: r.r#gen(),
+                fr_seq: (0..10).map(|_| r.r#gen()).collect(),
+                fr_seq_signed: (0..10).map(|_| r.r#gen()).collect(),
+                fq: r.r#gen(),
+                fq_seq: (0..10).map(|_| r.r#gen()).collect(),
+                g1: r.r#gen(),
+                g1_seq: (0..10).map(|_| r.r#gen()).collect(),
+                g2: r.r#gen(),
+                gt: r.r#gen(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_serde_with_human_and_non_human_readable() {
+        let mut rng = rand::thread_rng();
+        let should = SerializableWith::rand(&mut rng);
+        let json_encoded = serde_json::to_vec(&should).expect("can serialize json");
+        let json = serde_json::from_slice::<SerializableWith>(&json_encoded)
+            .expect("can deserialize json");
+
+        let mut b = Vec::new();
+        ciborium::into_writer(&should, &mut b).expect("can cbor serialize");
+        let ciborium: SerializableWith =
+            ciborium::from_reader(b.as_slice()).expect("can deserialize cbor");
+        assert_eq!(should, json, "JSON round-trip failed");
+        assert_eq!(should, ciborium, "CBOR round-trip failed");
+    }
 }
 
 #[cfg(feature = "bls12-381")]
@@ -669,6 +726,63 @@ mod bls12_381_tests {
 
         assert_eq!(should, ciborium);
         assert_eq!(should, json);
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+    struct SerializableWith {
+        #[serde(with = "crate::field")]
+        fr: ark_bls12_381::Fr,
+        #[serde(with = "crate::field_signed")]
+        fr_signed: ark_bls12_381::Fr,
+        #[serde(with = "crate::field_seq")]
+        fr_seq: Vec<ark_bls12_381::Fr>,
+        #[serde(with = "crate::field_seq_signed")]
+        fr_seq_signed: Vec<ark_bls12_381::Fr>,
+        #[serde(with = "crate::field")]
+        fq: ark_bls12_381::Fq,
+        #[serde(with = "crate::field_seq")]
+        fq_seq: Vec<ark_bls12_381::Fq>,
+        #[serde(with = "bls12_381::g1")]
+        g1: ark_bls12_381::G1Affine,
+        #[serde(with = "bls12_381::g1_seq")]
+        g1_seq: Vec<ark_bls12_381::G1Affine>,
+        #[serde(with = "bls12_381::g2")]
+        g2: ark_bls12_381::G2Affine,
+        #[serde(with = "bls12_381::gt")]
+        gt: ark_bls12_381::Fq12,
+    }
+
+    impl SerializableWith {
+        fn rand<R: Rng>(r: &mut R) -> Self {
+            Self {
+                fr: r.r#gen(),
+                fr_signed: r.r#gen(),
+                fr_seq: (0..10).map(|_| r.r#gen()).collect(),
+                fr_seq_signed: (0..10).map(|_| r.r#gen()).collect(),
+                fq: r.r#gen(),
+                fq_seq: (0..10).map(|_| r.r#gen()).collect(),
+                g1: r.r#gen(),
+                g1_seq: (0..10).map(|_| r.r#gen()).collect(),
+                g2: r.r#gen(),
+                gt: r.r#gen(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_serde_with_human_and_non_human_readable() {
+        let mut rng = rand::thread_rng();
+        let should = SerializableWith::rand(&mut rng);
+        let json_encoded = serde_json::to_vec(&should).expect("can serialize json");
+        let json = serde_json::from_slice::<SerializableWith>(&json_encoded)
+            .expect("can deserialize json");
+
+        let mut b = Vec::new();
+        ciborium::into_writer(&should, &mut b).expect("can cbor serialize");
+        let ciborium: SerializableWith =
+            ciborium::from_reader(b.as_slice()).expect("can deserialize cbor");
+        assert_eq!(should, json, "JSON round-trip failed");
+        assert_eq!(should, ciborium, "CBOR round-trip failed");
     }
 }
 
@@ -985,5 +1099,50 @@ mod babyjubjub_test {
         let mut buf = Vec::new();
         ciborium::into_writer(&seq, &mut buf).expect("can cbor serialize");
         ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice()).expect_err("Should be an error");
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+    struct SerializableWith {
+        #[serde(with = "babyjubjub::fr")]
+        fr: ark_babyjubjub::Fr,
+        #[serde(with = "babyjubjub::fr_signed")]
+        fr_signed: ark_babyjubjub::Fr,
+        #[serde(with = "crate::field")]
+        fq: ark_babyjubjub::Fq,
+        #[serde(with = "babyjubjub::fq_seq")]
+        fq_seq: Vec<ark_babyjubjub::Fq>,
+        #[serde(with = "babyjubjub::affine")]
+        affine: ark_babyjubjub::EdwardsAffine,
+        #[serde(with = "babyjubjub::affine_seq")]
+        affine_seq: Vec<ark_babyjubjub::EdwardsAffine>,
+    }
+
+    impl SerializableWith {
+        fn rand<R: Rng>(r: &mut R) -> Self {
+            Self {
+                fr: r.r#gen(),
+                fr_signed: r.r#gen(),
+                fq: r.r#gen(),
+                fq_seq: (0..10).map(|_| r.r#gen()).collect(),
+                affine: r.r#gen(),
+                affine_seq: (0..10).map(|_| r.r#gen()).collect(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_serde_with_human_and_non_human_readable() {
+        let mut rng = rand::thread_rng();
+        let should = SerializableWith::rand(&mut rng);
+        let json_encoded = serde_json::to_vec(&should).expect("can serialize json");
+        let json = serde_json::from_slice::<SerializableWith>(&json_encoded)
+            .expect("can deserialize json");
+
+        let mut b = Vec::new();
+        ciborium::into_writer(&should, &mut b).expect("can cbor serialize");
+        let ciborium: SerializableWith =
+            ciborium::from_reader(b.as_slice()).expect("can deserialize cbor");
+        assert_eq!(should, json, "JSON round-trip failed");
+        assert_eq!(should, ciborium, "CBOR round-trip failed");
     }
 }

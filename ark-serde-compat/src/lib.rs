@@ -1251,6 +1251,138 @@ fn parse_field_str_inner_unsigned<F: PrimeField>(v: &str) -> Result<F, SerdeComp
     parse_field_str_inner::<true, F>(v)
 }
 
+/// Module for use with `#[serde(with = "...")]` for unsigned prime field elements.
+///
+/// # Example
+///
+/// ```ignore
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct MyStruct {
+///     #[serde(with = "taceo_ark_serde_compat::field")]
+///     field: ark_bn254::Fr,
+/// }
+/// ```
+pub mod field {
+    use ark_ff::PrimeField;
+    use serde::{Serializer, de};
+
+    /// Serialize a prime field element as a decimal string (human-readable) or compressed bytes.
+    pub fn serialize<S: Serializer>(p: &impl PrimeField, ser: S) -> Result<S::Ok, S::Error> {
+        super::serialize_f(p, ser)
+    }
+
+    /// Deserialize an unsigned prime field element from a decimal string or compressed bytes.
+    pub fn deserialize<'de, F, D>(deserializer: D) -> Result<F, D::Error>
+    where
+        D: de::Deserializer<'de>,
+        F: PrimeField,
+    {
+        super::deserialize_f(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "...")]` for signed prime field elements.
+///
+/// Allows negative values consistent with Circom's negative value parsing.
+///
+/// # Example
+///
+/// ```ignore
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct MyStruct {
+///     #[serde(with = "taceo_ark_serde_compat::field_signed")]
+///     field: ark_bn254::Fr,
+/// }
+/// ```
+pub mod field_signed {
+    use ark_ff::PrimeField;
+    use serde::{Serializer, de};
+
+    /// Serialize a prime field element as a decimal string (human-readable) or compressed bytes.
+    pub fn serialize<S: Serializer>(p: &impl PrimeField, ser: S) -> Result<S::Ok, S::Error> {
+        super::serialize_f(p, ser)
+    }
+
+    /// Deserialize a signed prime field element from a decimal string or compressed bytes.
+    pub fn deserialize<'de, F, D>(deserializer: D) -> Result<F, D::Error>
+    where
+        D: de::Deserializer<'de>,
+        F: PrimeField,
+    {
+        super::deserialize_f_signed(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "...")]` for sequences of unsigned prime field elements.
+///
+/// # Example
+///
+/// ```ignore
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct MyStruct {
+///     #[serde(with = "taceo_ark_serde_compat::field_seq")]
+///     fields: Vec<ark_bn254::Fr>,
+/// }
+/// ```
+pub mod field_seq {
+    use ark_ff::PrimeField;
+    use serde::{Serializer, de};
+
+    /// Serialize a sequence of prime field elements.
+    pub fn serialize<S: Serializer, F: PrimeField>(ps: &[F], ser: S) -> Result<S::Ok, S::Error> {
+        super::serialize_f_seq(ps, ser)
+    }
+
+    /// Deserialize a sequence of unsigned prime field elements.
+    pub fn deserialize<'de, D, F>(deserializer: D) -> Result<Vec<F>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+        F: PrimeField,
+    {
+        super::deserialize_f_seq(deserializer)
+    }
+}
+
+/// Module for use with `#[serde(with = "...")]` for sequences of signed prime field elements.
+///
+/// Allows negative values consistent with Circom's negative value parsing.
+///
+/// # Example
+///
+/// ```ignore
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct MyStruct {
+///     #[serde(with = "taceo_ark_serde_compat::field_seq_signed")]
+///     fields: Vec<ark_bn254::Fr>,
+/// }
+/// ```
+pub mod field_seq_signed {
+    use ark_ff::PrimeField;
+    use serde::{Serializer, de};
+
+    /// Serialize a sequence of prime field elements.
+    pub fn serialize<S: Serializer, F: PrimeField>(ps: &[F], ser: S) -> Result<S::Ok, S::Error> {
+        super::serialize_f_seq(ps, ser)
+    }
+
+    /// Deserialize a sequence of signed prime field elements.
+    pub fn deserialize<'de, D, F>(deserializer: D) -> Result<Vec<F>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+        F: PrimeField,
+    {
+        super::deserialize_f_seq_signed(deserializer)
+    }
+}
+
 #[cfg(feature = "bn254")]
 impl_macro::impl_json_canonical!(ark_bn254, Bn254, bn254);
 
