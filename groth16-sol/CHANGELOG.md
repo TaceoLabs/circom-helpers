@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-sol-v0.2.3...taceo-groth16-sol-v0.3.0)
+
+### ⛰️ Features
+
+
+- Provide a Proof decompression function ([#42](https://github.com/TaceoLabs/circom-helpers/pull/42)) - ([1f14fbc](https://github.com/TaceoLabs/circom-helpers/commit/1f14fbc7c652c4d99858a7fcedf5d3bf6611e149))
+
+
 ## [0.2.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-sol-v0.2.2...taceo-groth16-sol-v0.2.3)
 
 ### ⚙️ Miscellaneous Tasks

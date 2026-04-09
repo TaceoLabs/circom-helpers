@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.4.2...taceo-ark-serde-compat-v0.5.0)
+
+### ⛰️ Features
+
+
+- *(ark-serde-compat)* Add serde with "mod" pattern ([#51](https://github.com/TaceoLabs/circom-helpers/pull/51)) - ([cb7d968](https://github.com/TaceoLabs/circom-helpers/commit/cb7d96898959f53dae35cab8ed69e9e3ea7ec693))
+
+### 🚜 Refactor
+
+
+- *(ark-serde-compat)* [**breaking**] Remove redundant serialize_fr/fq in babyjubjub ([#52](https://github.com/TaceoLabs/circom-helpers/pull/52)) - ([9d66236](https://github.com/TaceoLabs/circom-helpers/commit/9d66236b61f36a202512a8e3ee43290da950557f))
+
+
 ## [0.4.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.4.1...taceo-ark-serde-compat-v0.4.2)
 
 ### ⛰️ Features
