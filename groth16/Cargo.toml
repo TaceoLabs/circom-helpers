@@ -1,6 +1,6 @@
 [package]
 name = "taceo-groth16"
-version = "0.1.2"
+version = "0.1.3"
 edition.workspace = true
 rust-version.workspace = true
 description = "An implementation of the Groth16 zkSNARK proof system."
