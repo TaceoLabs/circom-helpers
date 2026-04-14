@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-v0.1.2...taceo-groth16-v0.1.3)
+
+### Build
+
+
+- Add path deps for siblings - ([e414536](https://github.com/TaceoLabs/circom-helpers/commit/e414536e22043564c16312b512a468d6e25aa1a0))
+
+
 ## [0.1.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-v0.1.1...taceo-groth16-v0.1.2)
 
 ### 🐛 Bug Fixes
