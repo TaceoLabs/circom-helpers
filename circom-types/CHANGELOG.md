@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.5]
+
+### Build
+
+
+- Add path deps for siblings - ([e414536](https://github.com/TaceoLabs/circom-helpers/commit/e414536e22043564c16312b512a468d6e25aa1a0))
+
+
 ## [0.2.5](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.2.4...taceo-circom-types-v0.2.5)
 
 ### Build
