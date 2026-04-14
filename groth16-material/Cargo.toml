@@ -12,35 +12,41 @@ keywords = ["circom", "groth16", "zero-knowledge", "zk"]
 
 [package.metadata.cargo-all-features]
 skip_feature_sets = [
-  ["circom", "noir"],
   ["reqwest", "reqwest-blocking"],
 ]
 max_combination_size = 2
 
 [dependencies]
 ark-bn254 = { workspace = true }
-ark-ec = { workspace = true }
 ark-ff = { workspace = true }
 ark-groth16 = { workspace = true }
-ark-relations = { workspace = true }
 ark-serialize = { workspace = true, optional = true }
-circom-types = { workspace = true, features = ["bn254", "groth16", "zkey"] }
+circom-types = { package = "taceo-circom-types", path = "../circom-types", version = "0.2.4", features = [
+  "bn254",
+  "groth16",
+  "zkey"
+], default-features = false }
 circom-witness-rs = { workspace = true, optional = true }
 eyre = { workspace = true }
-groth16 = { workspace = true }
-hex = { workspace = true }
-rand = { workspace = true }
+groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.1.2" }
+hex = { workspace = true, optional = true }
 postcard = { workspace = true, optional = true }
+rand = { workspace = true }
 reqwest = { workspace = true, optional = true }
 ruint = { workspace = true, optional = true }
-sha2 = { workspace = true }
+sha2 = { workspace = true, optional = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 
 [features]
 default = ["circom"]
-circom = ["dep:ark-serialize", "dep:circom-witness-rs", "dep:postcard", "dep:ruint"]
-full = ["circom", "noir"]
-noir = []
+circom = [
+  "dep:ark-serialize",
+  "dep:circom-witness-rs",
+  "dep:hex",
+  "dep:postcard",
+  "dep:ruint",
+  "dep:sha2"
+]
+full = ["circom"]
 reqwest = ["dep:reqwest"]
 reqwest-blocking = ["reqwest/blocking"]
