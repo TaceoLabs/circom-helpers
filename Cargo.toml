@@ -25,7 +25,7 @@ ark-ff = { version = "0.5", default-features = false }
 ark-groth16 = { version = "0.5", default-features = false }
 ark-poly = { version = "0.5", default-features = false }
 ark-relations = { version = "0.5", default-features = false }
-ark-serialize = { version = "0.5", default-features = false }
+ark-serialize = { version = "0.6", default-features = false }
 ark-snark = "0.5"
 ark-std = "0.5"
 byteorder = "1.5"
