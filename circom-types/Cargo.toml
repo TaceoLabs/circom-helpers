@@ -31,7 +31,7 @@ ark-ff = { workspace = true }
 ark-groth16 = { workspace = true, optional = true }
 ark-poly = { workspace = true }
 ark-relations = { workspace = true, optional = true }
-ark-serde-compat = { package = "taceo-ark-serde-compat", path = "../ark-serde-compat", version = "0.5.0", default-features=false }
+ark-serde-compat = { package = "taceo-ark-serde-compat", path = "../ark-serde-compat", version = "0.6.0", default-features=false }
 ark-serialize = { workspace = true }
 ark-std = { workspace = true }
 byteorder = { workspace = true }

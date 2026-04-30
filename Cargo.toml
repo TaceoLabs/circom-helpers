@@ -17,17 +17,17 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 alloy-primitives = "1"
-ark-babyjubjub = { package = "taceo-ark-babyjubjub", version = "0.5" }
-ark-bls12-381 = "0.5"
-ark-bn254 = { version = "0.5" }
-ark-ec = { version = "0.5", default-features = false }
-ark-ff = { version = "0.5", default-features = false }
-ark-groth16 = { version = "0.5", default-features = false }
-ark-poly = { version = "0.5", default-features = false }
-ark-relations = { version = "0.5", default-features = false }
-ark-serialize = { version = "0.5", default-features = false }
-ark-snark = "0.5"
-ark-std = "0.5"
+ark-babyjubjub = { package = "taceo-ark-babyjubjub", version = "0.6" }
+ark-bls12-381 = "0.6"
+ark-bn254 = { version = "0.6" }
+ark-ec = { version = "0.6", default-features = false }
+ark-ff = { version = "0.6", default-features = false }
+ark-groth16 = { version = "0.6", default-features = false }
+ark-poly = { version = "0.6", default-features = false }
+ark-relations = { version = "0.6", default-features = false }
+ark-serialize = { version = "0.6", default-features = false }
+ark-snark = "0.6"
+ark-std = "0.6"
 byteorder = "1.5"
 ciborium = "0.2.2"
 circom-witness-rs = "0.2.3"
@@ -49,6 +49,11 @@ sha2 = "0.11"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+
+# TODO: drop once `taceo-ark-babyjubjub` 0.6 is published
+# (tracked in `eddsa-babyjubjub` branch dk/update-arkworks-0.6).
+[patch.crates-io]
+taceo-ark-babyjubjub = { path = "../eddsa-babyjubjub/ark-babyjubjub" }
 
 # This profile can be used for CI in pull requests.
 [profile.ci-dev]
