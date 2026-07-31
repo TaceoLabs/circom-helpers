@@ -42,7 +42,7 @@ rayon = "1.8"
 reqwest = { version = "0.13", default-features = false, features = [
   "rustls"
 ] }
-ruint = "1.17"
+ruint = "1.19"
 serde = { version = "1.0" }
 serde_json = "1"
 sha2 = "0.11"
@@ -50,10 +50,13 @@ thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
+[patch.crates-io]
 # TODO: drop once `taceo-ark-babyjubjub` 0.6 is published
 # (tracked in `eddsa-babyjubjub` branch dk/update-arkworks-0.6).
-[patch.crates-io]
 taceo-ark-babyjubjub = { path = "../eddsa-babyjubjub/ark-babyjubjub" }
+# TODO: drop once a `circom-witness-rs` release supports arkworks 0.6
+# (tracked in the TaceoLabs fork, branch dk/update-arkworks-0.6).
+circom-witness-rs = { path = "../circom-witness-rs" }
 
 # This profile can be used for CI in pull requests.
 [profile.ci-dev]

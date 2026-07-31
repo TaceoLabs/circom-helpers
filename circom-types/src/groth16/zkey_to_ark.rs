@@ -1,7 +1,7 @@
 use ark_ec::pairing::Pairing;
 use ark_ff::PrimeField;
 use ark_groth16::{ProvingKey, VerifyingKey};
-use ark_relations::r1cs::ConstraintMatrices;
+use groth16::ConstraintMatrices;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 
 use crate::groth16::Zkey;
