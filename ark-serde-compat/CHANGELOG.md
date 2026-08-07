@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.6.0...taceo-ark-serde-compat-v0.6.1)
+
+### 🐛 Bug Fixes
+
+
+- Use correct encoding of G2 identity in JSON path - ([48acc4b](https://github.com/TaceoLabs/circom-helpers/commit/48acc4bc19704f71311e9d19342530578d024c76))
+
+### 🧪 Testing
+
+
+- *(ark-serde-compat)* Add KAT vector tests - ([fa13b13](https://github.com/TaceoLabs/circom-helpers/commit/fa13b133302295b76e329d7cdb53aee1d7230e63))
+
+
 ## [0.6.0]
 
 ### Build
