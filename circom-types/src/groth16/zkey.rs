@@ -28,7 +28,7 @@
 //! Inspired by <https://github.com/arkworks-rs/circom-compat/blob/170b10fc9ed182b5f72ecf379033dda023d0bf07/src/zkey.rs>
 use ark_ec::pairing::Pairing;
 use ark_ff::PrimeField;
-use ark_relations::r1cs::Matrix;
+use ark_relations::utils::matrix::Matrix;
 use ark_serialize::CanonicalDeserialize;
 
 use std::io::Read;

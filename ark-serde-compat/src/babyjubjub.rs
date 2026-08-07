@@ -9,6 +9,7 @@
 //!
 //! Curve points are serialized in affine coordinates as arrays of two coordinate strings.
 
+use ark_ec::AffineRepr as _;
 use ark_serialize::{CanonicalDeserialize as _, CanonicalSerialize as _, Compress};
 use serde::ser::Error;
 use serde::{

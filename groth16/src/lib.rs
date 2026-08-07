@@ -1,16 +1,44 @@
 use ark_ec::VariableBaseMSM;
 use ark_ec::pairing::Pairing;
 use ark_ec::{AffineRepr, CurveGroup};
-use ark_ff::{FftField, LegendreSymbol, PrimeField};
+use ark_ff::{FftField, Field, LegendreSymbol, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_relations::utils::matrix::Matrix;
 use std::marker::PhantomData;
 use tracing::instrument;
 
 pub use ark_groth16::{Proof, ProvingKey, VerifyingKey};
-pub use ark_relations::r1cs::ConstraintMatrices;
 pub use reduction::{CircomReduction, LibSnarkReduction, R1CSToQAP};
 
 mod reduction;
+
+/// The R1CS matrices for a constraint system, together with the variable and
+/// constraint counts. This mirrors the `ark_relations::r1cs::ConstraintMatrices`
+/// struct that was removed in `ark-relations` 0.6 (which only exposes a
+/// `BTreeMap<Label, Vec<Matrix<F>>>` from `ConstraintSystem::to_matrices`).
+#[derive(Clone, Debug)]
+pub struct ConstraintMatrices<F: Field> {
+    /// The number of variables that are "public instances" to the constraint
+    /// system.
+    pub num_instance_variables: usize,
+    /// The number of variables that are "private witnesses" to the constraint
+    /// system.
+    pub num_witness_variables: usize,
+    /// The number of constraints in the constraint system.
+    pub num_constraints: usize,
+    /// The number of non_zero entries in the A matrix.
+    pub a_num_non_zero: usize,
+    /// The number of non_zero entries in the B matrix.
+    pub b_num_non_zero: usize,
+    /// The number of non_zero entries in the C matrix.
+    pub c_num_non_zero: usize,
+    /// The A matrix in sparse representation.
+    pub a: Matrix<F>,
+    /// The B matrix in sparse representation.
+    pub b: Matrix<F>,
+    /// The C matrix in sparse representation.
+    pub c: Matrix<F>,
+}
 
 macro_rules! rayon_join3 {
     ($t1: expr, $t2: expr, $t3: expr) => {{

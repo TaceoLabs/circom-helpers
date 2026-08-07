@@ -3,11 +3,11 @@ use ark_ff::{PrimeField, UniformRand};
 use ark_groth16::{Groth16, r1cs_to_qap::LibsnarkReduction};
 use ark_poly::EvaluationDomain;
 use ark_relations::{
-    lc,
-    r1cs::{
-        ConstraintMatrices, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef,
-        OptimizationGoal, SynthesisError,
+    gr1cs::{
+        ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, OptimizationGoal,
+        R1CS_PREDICATE_LABEL, SynthesisError,
     },
+    lc,
 };
 use ark_snark::SNARK;
 use ark_std::rand::SeedableRng;
@@ -16,6 +16,7 @@ use rayon::iter::{
     IndexedParallelIterator as _, IntoParallelIterator as _, IntoParallelRefIterator,
     IntoParallelRefMutIterator, ParallelIterator as _,
 };
+use taceo_groth16::ConstraintMatrices;
 
 const NUM_CONSTRAINTS: usize = (1 << 16) - 100;
 const NUM_VARIABLES: usize = (1 << 16) - 100;
@@ -35,7 +36,7 @@ impl ark_groth16::r1cs_to_qap::R1CSToQAP for CircomReduction {
     }
 
     fn witness_map_from_matrices<F: PrimeField, D: EvaluationDomain<F>>(
-        matrices: &ConstraintMatrices<F>,
+        matrices: &[ark_relations::utils::matrix::Matrix<F>],
         num_inputs: usize,
         num_constraints: usize,
         full_assignment: &[F],
@@ -51,8 +52,8 @@ impl ark_groth16::r1cs_to_qap::R1CSToQAP for CircomReduction {
         a[..num_constraints]
             .par_iter_mut()
             .zip(b[..num_constraints].par_iter_mut())
-            .zip(matrices.a.par_iter())
-            .zip(matrices.b.par_iter())
+            .zip(matrices[0].par_iter())
+            .zip(matrices[1].par_iter())
             .for_each(|(((a, b), at_i), bt_i)| {
                 *a = ark_groth16::r1cs_to_qap::evaluate_constraint(at_i, full_assignment);
                 *b = ark_groth16::r1cs_to_qap::evaluate_constraint(bt_i, full_assignment);
@@ -146,10 +147,10 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
         }
 
         for _ in 0..self.num_constraints - 1 {
-            cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
+            cs.enforce_r1cs_constraint(|| lc!() + a, || lc!() + b, || lc!() + c)?;
         }
 
-        cs.enforce_constraint(lc!(), lc!(), lc!())?;
+        cs.enforce_r1cs_constraint(|| lc!(), || lc!(), || lc!())?;
 
         Ok(())
     }
@@ -175,11 +176,27 @@ fn groth16_prove_bench<P: Pairing>(
     circuit.generate_constraints(cs.clone()).unwrap();
     assert!(cs.is_satisfied().unwrap());
     cs.finalize();
-    let matrices = cs.to_matrices().unwrap();
+    let cs_matrices = cs.to_matrices().unwrap();
+    let r1cs_matrices = cs_matrices
+        .get(R1CS_PREDICATE_LABEL)
+        .expect("R1CS predicate registered on a default ConstraintSystem");
+    let num_inputs = cs.num_instance_variables();
+    let num_constraints = cs.num_constraints();
+    let local_matrices = ConstraintMatrices {
+        num_instance_variables: num_inputs,
+        num_witness_variables: cs.num_witness_variables(),
+        num_constraints,
+        a_num_non_zero: r1cs_matrices[0].iter().map(Vec::len).sum(),
+        b_num_non_zero: r1cs_matrices[1].iter().map(Vec::len).sum(),
+        c_num_non_zero: r1cs_matrices[2].iter().map(Vec::len).sum(),
+        a: r1cs_matrices[0].clone(),
+        b: r1cs_matrices[1].clone(),
+        c: r1cs_matrices[2].clone(),
+    };
     let prover = cs.borrow().unwrap();
     let full_assignment = [
-        prover.instance_assignment.as_slice(),
-        prover.witness_assignment.as_slice(),
+        prover.instance_assignment().unwrap(),
+        prover.witness_assignment().unwrap(),
     ]
     .concat();
 
@@ -192,9 +209,9 @@ fn groth16_prove_bench<P: Pairing>(
         &pk,
         r,
         s,
-        &matrices,
-        matrices.num_instance_variables,
-        matrices.num_constraints,
+        r1cs_matrices,
+        num_inputs,
+        num_constraints,
         &full_assignment,
     )
     .unwrap();
@@ -202,7 +219,7 @@ fn groth16_prove_bench<P: Pairing>(
         &pk,
         r,
         s,
-        &matrices,
+        &local_matrices,
         &full_assignment,
     )
     .unwrap();
@@ -211,9 +228,9 @@ fn groth16_prove_bench<P: Pairing>(
         &pk,
         r,
         s,
-        &matrices,
-        matrices.num_instance_variables,
-        matrices.num_constraints,
+        r1cs_matrices,
+        num_inputs,
+        num_constraints,
         &full_assignment,
     )
     .unwrap();
@@ -221,7 +238,7 @@ fn groth16_prove_bench<P: Pairing>(
         &pk,
         r,
         s,
-        &matrices,
+        &local_matrices,
         &full_assignment,
     )
     .unwrap();
@@ -233,9 +250,9 @@ fn groth16_prove_bench<P: Pairing>(
                 &pk,
                 r,
                 s,
-                &matrices,
-                matrices.num_instance_variables,
-                matrices.num_constraints,
+                r1cs_matrices,
+                num_inputs,
+                num_constraints,
                 &full_assignment,
             )
             .unwrap();
@@ -247,9 +264,9 @@ fn groth16_prove_bench<P: Pairing>(
                 &pk,
                 r,
                 s,
-                &matrices,
-                matrices.num_instance_variables,
-                matrices.num_constraints,
+                r1cs_matrices,
+                num_inputs,
+                num_constraints,
                 &full_assignment,
             )
             .unwrap();
@@ -261,7 +278,7 @@ fn groth16_prove_bench<P: Pairing>(
                 &pk,
                 r,
                 s,
-                &matrices,
+                &local_matrices,
                 &full_assignment,
             )
             .unwrap();
@@ -273,7 +290,7 @@ fn groth16_prove_bench<P: Pairing>(
                 &pk,
                 r,
                 s,
-                &matrices,
+                &local_matrices,
                 &full_assignment,
             )
             .unwrap();
