@@ -90,6 +90,23 @@ mod bn254_tests {
     }
 
     #[test]
+    fn test_g2_infinity_roundtrip() {
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+        struct Wrapper(#[serde(with = "bn254::g2")] ark_bn254::G2Affine);
+
+        let inf = Wrapper(ark_bn254::G2Affine::identity());
+        let json = serde_json::to_string(&inf).expect("can serialize json");
+        assert_eq!(json, r#"[["0","0"],["1","0"],["0","0"]]"#);
+        let de: Wrapper = serde_json::from_str(&json).expect("can deserialize json");
+        assert_eq!(de, inf);
+
+        let mut buf = Vec::new();
+        ciborium::into_writer(&inf, &mut buf).expect("can cbor serialize");
+        let de: Wrapper = ciborium::from_reader(buf.as_slice()).expect("can deserialize cbor");
+        assert_eq!(de, inf);
+    }
+
+    #[test]
     fn test_unsigned_malleability() {
         let random_number: BigUint = ark_bn254::Fr::rand(&mut rand::thread_rng())
             .into_bigint()

@@ -38,8 +38,8 @@ use ark_ec::{
     short_weierstrass::{Affine, Projective, SWCurveConfig},
 };
 use ark_ff::{
-    CubicExtConfig, CubicExtField, Field, Fp12Config, Fp12ConfigWrapper, PrimeField, QuadExtConfig,
-    QuadExtField, Zero,
+    CubicExtConfig, CubicExtField, Field, Fp12Config, Fp12ConfigWrapper, One, PrimeField,
+    QuadExtConfig, QuadExtField, Zero,
 };
 use ark_serialize::{CanonicalDeserialize as _, CanonicalSerialize as _, Compress};
 use num_bigint::Sign;
@@ -452,13 +452,20 @@ where
     F: QuadExtConfig,
 {
     if ser.is_human_readable() {
+        let (x, y, z) = if let Some((x, y)) = p.xy() {
+            (x, y, QuadExtField::<F>::one())
+        } else {
+            // point at infinity
+            (
+                QuadExtField::<F>::zero(),
+                QuadExtField::<F>::one(),
+                QuadExtField::<F>::zero(),
+            )
+        };
         let mut x_seq = ser.serialize_seq(Some(3))?;
-        let (x, y) = p
-            .xy()
-            .unwrap_or((QuadExtField::<F>::zero(), QuadExtField::<F>::zero()));
         x_seq.serialize_element(&[x.c0.to_string(), x.c1.to_string()])?;
         x_seq.serialize_element(&[y.c0.to_string(), y.c1.to_string()])?;
-        x_seq.serialize_element(&["1", "0"])?;
+        x_seq.serialize_element(&[z.c0.to_string(), z.c1.to_string()])?;
         x_seq.end()
     } else {
         let mut bytes = Vec::with_capacity(p.serialized_size(Compress::Yes));
