@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.3.0...taceo-groth16-material-v0.3.1)
+
+### ⚙️ Miscellaneous Tasks
+
+
+- Update Cargo.toml dependencies - ([0000000](https://github.com/TaceoLabs/circom-helpers/commit/0000000))
+
+
 ## [0.3.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.2.5...taceo-groth16-material-v0.3.0)
 
 ### Build
