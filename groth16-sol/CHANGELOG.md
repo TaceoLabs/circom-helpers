@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-sol-v0.3.1...taceo-groth16-sol-v0.4.0)
+
+### Build
+
+
+- *(deps)* [**breaking**] Update arkworks to 0.6 ([#68](https://github.com/TaceoLabs/circom-helpers/pull/68)) - ([6a6c475](https://github.com/TaceoLabs/circom-helpers/commit/6a6c475bb5da18a5a9e4eab3611f9c09edb4beb4))
+
+
 ## [0.3.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-sol-v0.3.0...taceo-groth16-sol-v0.3.1)
 
 ### Build
