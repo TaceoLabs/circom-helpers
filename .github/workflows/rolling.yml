@@ -22,10 +22,12 @@ jobs:
     # Unfortunately, hashFiles only works in if on steps, so we reepeat it.
     # if: hashFiles('Cargo.lock') != ''
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install beta
         if: hashFiles('Cargo.lock') != ''
-        uses: dtolnay/rust-toolchain@beta
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: beta
       - name: cargo update
         if: hashFiles('Cargo.lock') != ''
         run: cargo update
@@ -38,8 +40,8 @@ jobs:
     name: Nightly lints
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
         with:
           toolchain: nightly
           components: rustfmt, clippy
