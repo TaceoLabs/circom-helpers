@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+  "ark-algebra",
   "ark-serde-compat",
   "circom-types",
   "groth16",

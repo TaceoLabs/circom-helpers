@@ -10,6 +10,7 @@ lint: lint-bin
     # We do these standalone checks to not have wrong passes due to workspace dependencies
     # So we cd into the subcrate and run the checks as if it was standalone
     just lint-subcrate circom-types
+    just lint-subcrate ark-algebra
     just lint-subcrate ark-serde-compat
     just lint-subcrate groth16
     just lint-subcrate groth16-material
