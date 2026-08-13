@@ -1,11 +1,10 @@
-use ark_algebra::fft::{Domain, bit_reverse};
+use ark_algebra::fft::{Domain, bit_reverse, powers};
 use ark_ec::pairing::Pairing;
 use ark_ff::{FftField, Field, One};
 use ark_relations::utils::matrix::Matrix;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
-use rayon::slice::ParallelSliceMut;
 use tracing::instrument;
 
 use crate::ConstraintMatrices;
@@ -32,18 +31,7 @@ pub trait R1CSToQAP {
 /// read it sequentially instead of jumping around it.
 #[instrument(level = "debug", name = "bit reversed coset table", skip_all)]
 fn bit_reversed_coset_table<F: FftField>(shift: F, size: usize) -> Vec<F> {
-    let chunk_size = size.div_ceil(rayon::current_num_threads()).max(1);
-    let mut table = vec![F::one(); size];
-    table
-        .par_chunks_mut(chunk_size)
-        .enumerate()
-        .for_each(|(chunk_index, values)| {
-            let mut current = shift.pow([(chunk_index * chunk_size) as u64]);
-            for value in values.iter_mut() {
-                *value = current;
-                current *= shift;
-            }
-        });
+    let mut table = powers(shift, size);
     bit_reverse(&mut table);
     table
 }
@@ -95,7 +83,7 @@ impl R1CSToQAP for CircomReduction {
 
         let eval_constraint_span =
             tracing::debug_span!("evaluate constraints + coset table computation").entered();
-        let (coset_table, a, b) = rayon_join3!(
+        let (coset_table, mut a, mut b) = rayon_join3!(
             || bit_reversed_coset_table(coset_shift, domain_size),
             || {
                 let eval_constraint_span_a =
@@ -126,61 +114,36 @@ impl R1CSToQAP for CircomReduction {
         );
         eval_constraint_span.exit();
 
-        let mut a_coset = a.clone();
-        let mut b_coset = b.clone();
-        let (mut ab, c) = rayon::join(
-            || {
-                let (a, b) = rayon::join(
-                    || {
-                        let a_span =
-                            tracing::debug_span!("a: distribute powers mul a (fft/ifft)").entered();
-                        evaluate_over_coset(&domain, &mut a_coset, &coset_table);
-                        a_span.exit();
-                        a_coset
-                    },
-                    || {
-                        let b_span =
-                            tracing::debug_span!("b: distribute powers mul b (fft/ifft)").entered();
-                        evaluate_over_coset(&domain, &mut b_coset, &coset_table);
-                        b_span.exit();
-                        b_coset
-                    },
-                );
-                let local_ab_span = tracing::debug_span!("ab: mul vec").entered();
-                let ab = a
-                    .par_iter()
-                    .zip_eq(b.par_iter())
-                    .with_min_len(512)
-                    .map(|(a, b)| *a * b)
-                    .collect::<Vec<_>>();
-                local_ab_span.exit();
-                ab
-            },
-            || {
-                let local_mul_vec_span = tracing::debug_span!("c: mul vec").entered();
-                let mut c = a
-                    .par_iter()
-                    .zip_eq(b.par_iter())
-                    .with_min_len(512)
-                    .map(|(a, b)| *a * b)
-                    .collect::<Vec<_>>();
-                local_mul_vec_span.exit();
-                let coset_span = tracing::debug_span!("c: coset evaluation").entered();
-                evaluate_over_coset(&domain, &mut c, &coset_table);
-                coset_span.exit();
-                c
-            },
+        // C = A * B over the original domain, computed before A and B move onto the coset so
+        // that no clones of the evaluations are needed.
+        let mul_span = tracing::debug_span!("c: mul vec").entered();
+        let mut c = a
+            .par_iter()
+            .zip_eq(b.par_iter())
+            .with_min_len(512)
+            .map(|(a, b)| *a * b)
+            .collect::<Vec<_>>();
+        mul_span.exit();
+
+        let coset_span = tracing::debug_span!("coset evaluations a/b/c (fft/ifft)").entered();
+        rayon_join3!(
+            || evaluate_over_coset(&domain, &mut a, &coset_table),
+            || evaluate_over_coset(&domain, &mut b, &coset_table),
+            || evaluate_over_coset(&domain, &mut c, &coset_table)
         );
+        coset_span.exit();
 
         let compute_ab_span = tracing::debug_span!("compute ab").entered();
-        ab.par_iter_mut()
+        a.par_iter_mut()
+            .zip_eq(b.par_iter())
             .zip_eq(c.par_iter())
             .with_min_len(512)
-            .for_each(|(a, b)| {
-                *a -= *b;
+            .for_each(|((a, b), c)| {
+                *a *= *b;
+                *a -= *c;
             });
         compute_ab_span.exit();
-        Ok(ab)
+        Ok(a)
     }
 }
 
@@ -220,15 +183,21 @@ impl R1CSToQAP for LibSnarkReduction {
     ) -> eyre::Result<Vec<P::ScalarField>> {
         let num_constraints = matrices.num_constraints;
         let num_inputs = matrices.num_instance_variables;
+        // Circom-generated matrices leave C empty (the zkey does not carry it); evaluating an
+        // empty C would silently produce a wrong witness map.
+        eyre::ensure!(
+            matrices.c.len() >= num_constraints,
+            "the C matrix is missing constraint rows; circom-generated matrices require CircomReduction"
+        );
         let domain = Domain::<P::ScalarField>::new(num_constraints + num_inputs)
             .ok_or(eyre::eyre!("Polynomial Degree too large"))?;
         let domain_size = domain.size();
 
         let coset_table = bit_reversed_coset_table(P::ScalarField::GENERATOR, domain_size);
 
-        let (mut ab, c) = rayon::join(
+        let ((mut a, b), c) = rayon::join(
             || {
-                let (a, b) = rayon::join(
+                rayon::join(
                     || {
                         let mut a = evaluate_constraint::<P>(
                             domain_size,
@@ -251,12 +220,7 @@ impl R1CSToQAP for LibSnarkReduction {
                         evaluate_over_coset(&domain, &mut b, &coset_table);
                         b
                     },
-                );
-                a.par_iter()
-                    .zip_eq(b.par_iter())
-                    .with_min_len(512)
-                    .map(|(a, b)| *a * b)
-                    .collect::<Vec<_>>()
+                )
             },
             || {
                 let mut c = evaluate_constraint::<P>(
@@ -275,33 +239,26 @@ impl R1CSToQAP for LibSnarkReduction {
         .inverse()
         .expect("Inverse exists");
 
-        ab.par_iter_mut()
+        a.par_iter_mut()
+            .zip_eq(b.par_iter())
             .zip_eq(c.par_iter())
             .with_min_len(512)
-            .for_each(|(ab_i, c_i)| {
-                *ab_i -= *c_i;
-                *ab_i *= vanishing_polynomial_over_coset;
+            .for_each(|((a, b), c)| {
+                *a *= *b;
+                *a -= *c;
+                *a *= vanishing_polynomial_over_coset;
             });
 
         // Interpolate over the coset and undo the shift. `ifft_in_to_out` leaves the
         // coefficients in bit-reversed order, so permute them back before applying the inverse
         // shift, which then reads its table sequentially.
-        domain.ifft_in_to_out(&mut ab);
-        bit_reverse(&mut ab);
+        domain.ifft_in_to_out(&mut a);
+        bit_reverse(&mut a);
         let shift_inv = P::ScalarField::GENERATOR
             .inverse()
             .expect("generator has always inverse");
-        let chunk_size = domain_size.div_ceil(rayon::current_num_threads()).max(1);
-        ab.par_chunks_mut(chunk_size)
-            .enumerate()
-            .for_each(|(chunk_index, values)| {
-                let mut current = shift_inv.pow([(chunk_index * chunk_size) as u64]);
-                for value in values.iter_mut() {
-                    *value *= current;
-                    current *= shift_inv;
-                }
-            });
+        mul_pointwise(&mut a, &powers(shift_inv, domain_size));
 
-        Ok(ab)
+        Ok(a)
     }
 }

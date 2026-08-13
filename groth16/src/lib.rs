@@ -86,8 +86,17 @@ fn roots_of_unity<F: PrimeField + FftField>() -> (F, Vec<F>) {
 /// The generator differs from the one `ark_poly::Radix2EvaluationDomain` would pick (the old
 /// arkworks-based computation also broke for bls12-381); it is computed as in snarkjs (more
 /// precisely, in ffjavascript/src/wasm_field1.js), see `roots_of_unity`.
+///
+/// # Panics
+///
+/// Panics if `pow` exceeds the two-adicity of `F`, since no such domain exists.
 #[instrument(level = "debug", name = "root of unity", skip_all)]
 pub fn groth16_roots_of_unity<F: PrimeField + FftField>(pow: usize) -> (F, F) {
+    assert!(
+        pow <= F::TWO_ADICITY as usize,
+        "no domain of size 2^{pow}: the two-adicity of the field is {}",
+        F::TWO_ADICITY
+    );
     let (q, roots) = roots_of_unity::<F>();
     let group_gen = roots[pow];
     let coset_shift = if F::TWO_ADICITY as usize == pow {
@@ -170,6 +179,16 @@ where
         witness: &[P::ScalarField],
         num_inputs: usize,
     ) -> eyre::Result<Proof<P>> {
+        // The MSM truncates to the shorter slice, which for a well-matched key/witness map pair
+        // is at most off by one (arkworks' h_query has domain_size - 1 elements). A shorter `h`
+        // means the reduction's domain disagrees with the proving key's and the proof would be
+        // silently invalid.
+        eyre::ensure!(
+            h.len() + 1 >= pkey.h_query.len(),
+            "h has {} coefficients but the proving key expects {}: domain size mismatch",
+            h.len(),
+            pkey.h_query.len()
+        );
         let delta_g1 = pkey.delta_g1.into_group();
         let alpha_g1 = pkey.vk.alpha_g1;
         let beta_g1 = pkey.beta_g1;
