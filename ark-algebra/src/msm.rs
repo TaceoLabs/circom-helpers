@@ -84,11 +84,12 @@ pub fn msm_unchecked<P: SWCurveConfig>(
     bases: &[Affine<P>],
     scalars: &[P::ScalarField],
 ) -> Projective<P> {
-    let bigints = scalars
+    let size = bases.len().min(scalars.len());
+    let bigints = scalars[..size]
         .par_iter()
         .map(|scalar| scalar.into_bigint())
         .collect::<Vec<_>>();
-    msm_bigint(bases, &bigints)
+    msm_bigint(&bases[..size], &bigints)
 }
 
 /// Computes an MSM over scalars that are already in their integer representation.
@@ -149,10 +150,9 @@ fn msm_windows<P: SWCurveConfig>(
         })
         .collect();
 
-    // We store the sum for the lowest window.
+    // Combine the window sums from the highest window down; only the lowest window needs no
+    // doublings.
     let lowest = *window_sums.first().expect("at least one window");
-
-    // We're traversing windows from high to low.
     lowest
         + window_sums[1..]
             .iter()
@@ -196,10 +196,9 @@ fn window_major_digits<P: SWCurveConfig>(
 
     tasks
         .into_par_iter()
-        .enumerate()
-        .for_each(|(task, mut windows)| {
-            let offset = task * task_size;
-            for (index, scalar) in scalars[offset..].iter().take(task_size).enumerate() {
+        .zip(scalars.par_chunks(task_size))
+        .for_each(|(mut windows, scalars)| {
+            for (index, scalar) in scalars.iter().enumerate() {
                 for (window, digit) in make_digits(scalar, window_size, num_bits).enumerate() {
                     windows[window][index] = encode_digit(digit);
                 }
@@ -270,27 +269,35 @@ fn extended_jacobian_window_sum<P: SWCurveConfig>(
 }
 
 /// Buckets in affine coordinates, plus the machinery that lets a whole batch of additions share
-/// one field inversion.
-///
-/// The batched addition is the short-Weierstrass chord formula, so the accumulator is tied to SW
-/// geometry: the chord's exceptional cases (doubling, `P + (-P)`) are detected by comparing
-/// coordinates, and the point at infinity, which has no affine representation, marks an empty
-/// bucket.
+/// one field inversion. The batched addition is the short-Weierstrass chord formula; see the
+/// module docs for how the accumulator relies on the SW geometry.
 struct BucketAccumulator<P: SWCurveConfig> {
     /// The affine buckets. The point at infinity marks an empty bucket.
     buckets: Vec<Affine<P>>,
     /// Additions that could not be batched: doublings, and points that conflicted with the
-    /// pending batch for too long.
+    /// pending batch for too long. Empty until the first such addition, since for uniformly
+    /// distributed digits it is rarely needed at all.
     fallback: Vec<BucketOf<P>>,
     /// Whether a bucket is already referenced by the pending batch. All buckets in a batch have
     /// to be distinct, otherwise the additions would not be independent.
     pending: Vec<bool>,
     batch_buckets: Vec<usize>,
-    batch_points: Vec<(P::BaseField, P::BaseField)>,
+    /// The pending additions. The bucket coordinates are captured at enqueue time; `pending`
+    /// guarantees the bucket cannot change until the batch executes.
+    batch_points: Vec<BatchAdd<P::BaseField>>,
     queue: Vec<(usize, P::BaseField, P::BaseField)>,
+    /// `x - bucket_x` of each pending addition, in step with `batch_points`.
     denominators: Vec<P::BaseField>,
     inverses: Vec<P::BaseField>,
     batch_size: usize,
+}
+
+/// A batched addition of the point `(x, y)` onto the bucket at `(bucket_x, bucket_y)`.
+struct BatchAdd<F> {
+    x: F,
+    y: F,
+    bucket_x: F,
+    bucket_y: F,
 }
 
 impl<P: SWCurveConfig> BucketAccumulator<P> {
@@ -300,7 +307,7 @@ impl<P: SWCurveConfig> BucketAccumulator<P> {
         let batch_size = MAX_BATCH_SIZE.min(num_buckets / 8).max(1);
         Self {
             buckets: vec![Affine::zero(); num_buckets],
-            fallback: vec![Projective::<P>::ZERO_BUCKET; num_buckets],
+            fallback: Vec::new(),
             pending: vec![false; num_buckets],
             batch_buckets: Vec::with_capacity(batch_size),
             batch_points: Vec::with_capacity(batch_size),
@@ -316,16 +323,24 @@ impl<P: SWCurveConfig> BucketAccumulator<P> {
     fn add(&mut self, bucket: usize, x: P::BaseField, y: P::BaseField) {
         if self.pending[bucket] {
             self.queue.push((bucket, x, y));
-            if self.queue.len() == QUEUE_CAPACITY {
+            if self.queue.len() >= QUEUE_CAPACITY {
                 self.flush_queue();
             }
             return;
         }
         self.add_to_batch(bucket, x, y);
-        if self.batch_buckets.len() == self.batch_size {
+        if self.batch_buckets.len() >= self.batch_size {
             self.execute_batch();
             self.take_from_queue();
         }
+    }
+
+    /// The extended-Jacobian fallback bucket, allocating the array on first use.
+    fn fallback_bucket(&mut self, bucket: usize) -> &mut BucketOf<P> {
+        if self.fallback.is_empty() {
+            self.fallback = vec![Projective::<P>::ZERO_BUCKET; self.buckets.len()];
+        }
+        &mut self.fallback[bucket]
     }
 
     /// Handles the cases the batched affine addition cannot express, and otherwise appends to the
@@ -339,7 +354,7 @@ impl<P: SWCurveConfig> BucketAccumulator<P> {
             if bucket_y == y {
                 // Doubling. Rare enough that the extended Jacobian fallback is fine, and it keeps
                 // the special case out of the batched formula.
-                self.fallback[bucket] += Affine::new_unchecked(x, y);
+                *self.fallback_bucket(bucket) += Affine::new_unchecked(x, y);
             } else {
                 // The point is the negation of the bucket, so the bucket becomes empty.
                 self.buckets[bucket] = Affine::zero();
@@ -348,7 +363,13 @@ impl<P: SWCurveConfig> BucketAccumulator<P> {
         }
         self.pending[bucket] = true;
         self.batch_buckets.push(bucket);
-        self.batch_points.push((x, y));
+        self.batch_points.push(BatchAdd {
+            x,
+            y,
+            bucket_x,
+            bucket_y,
+        });
+        self.denominators.push(x - bucket_x);
     }
 
     /// Resolves the pending batch with a single inversion, then applies the affine addition
@@ -366,35 +387,23 @@ impl<P: SWCurveConfig> BucketAccumulator<P> {
         if batch_buckets.is_empty() {
             return;
         }
-
-        denominators.clear();
-        for (bucket, (x, _)) in batch_buckets.iter().zip(batch_points.iter()) {
-            let (bucket_x, _) = buckets[*bucket]
-                .xy()
-                .expect("batched bucket is not infinity");
-            denominators.push(*x - bucket_x);
-        }
         batch_inverse(denominators, inverses);
 
-        for ((bucket, (point_x, point_y)), inverse) in batch_buckets
+        for ((bucket, point), inverse) in batch_buckets
             .iter()
             .zip(batch_points.iter())
             .zip(inverses.iter())
         {
-            let (bucket_x, bucket_y) = buckets[*bucket]
-                .xy()
-                .expect("batched bucket is not infinity");
-
-            let mut lambda = *point_y - bucket_y;
+            let mut lambda = point.y - point.bucket_y;
             lambda *= *inverse;
 
             let mut x = lambda.square();
-            x -= bucket_x;
-            x -= *point_x;
+            x -= point.bucket_x;
+            x -= point.x;
 
-            let mut y = bucket_x - x;
+            let mut y = point.bucket_x - x;
             y *= lambda;
-            y -= bucket_y;
+            y -= point.bucket_y;
 
             buckets[*bucket] = Affine::new_unchecked(x, y);
             pending[*bucket] = false;
@@ -402,12 +411,13 @@ impl<P: SWCurveConfig> BucketAccumulator<P> {
 
         batch_buckets.clear();
         batch_points.clear();
+        denominators.clear();
     }
 
     /// Moves points off the top of the queue into the batch, while they do not conflict with it.
     fn take_from_queue(&mut self) {
         while let Some(&(bucket, x, y)) = self.queue.last() {
-            if self.pending[bucket] || self.batch_buckets.len() == self.batch_size {
+            if self.pending[bucket] || self.batch_buckets.len() >= self.batch_size {
                 return;
             }
             self.queue.pop();
@@ -416,11 +426,8 @@ impl<P: SWCurveConfig> BucketAccumulator<P> {
     }
 
     fn flush_queue(&mut self) {
-        let Self {
-            queue, fallback, ..
-        } = self;
-        for (bucket, x, y) in queue.drain(..) {
-            fallback[bucket] += Affine::new_unchecked(x, y);
+        while let Some((bucket, x, y)) = self.queue.pop() {
+            *self.fallback_bucket(bucket) += Affine::new_unchecked(x, y);
         }
     }
 
@@ -431,12 +438,21 @@ impl<P: SWCurveConfig> BucketAccumulator<P> {
 
         let mut running_sum = Projective::<P>::ZERO_BUCKET;
         let mut total = Projective::ZERO;
-        for (fallback, affine) in self.fallback.iter().zip(self.buckets.iter()).rev() {
-            running_sum += fallback;
-            if !affine.is_zero() {
-                running_sum += *affine;
+        if self.fallback.is_empty() {
+            for affine in self.buckets.iter().rev() {
+                if !affine.is_zero() {
+                    running_sum += *affine;
+                }
+                total += &running_sum;
             }
-            total += &running_sum;
+        } else {
+            for (fallback, affine) in self.fallback.iter().zip(self.buckets.iter()).rev() {
+                running_sum += fallback;
+                if !affine.is_zero() {
+                    running_sum += *affine;
+                }
+                total += &running_sum;
+            }
         }
         total
     }
@@ -463,23 +479,13 @@ fn batch_inverse<F: Field>(values: &[F], out: &mut Vec<F>) {
     }
 }
 
-const fn log2(value: usize) -> u32 {
-    if value == 0 {
-        0
-    } else if value.is_power_of_two() {
-        1usize.leading_zeros() - value.leading_zeros()
-    } else {
-        0usize.leading_zeros() - value.leading_zeros()
-    }
-}
-
 /// The result of this function is only approximately `ln(a)`
 /// [`Explanation of usage`]
 ///
 /// [`Explanation of usage`]: https://github.com/scipr-lab/zexe/issues/79#issue-556220473
-const fn ln_without_floats(a: usize) -> usize {
+fn ln_without_floats(a: usize) -> usize {
     // log2(a) * ln(2)
-    (log2(a) * 69 / 100) as usize
+    (ark_std::log2(a) * 69 / 100) as usize
 }
 
 // From: https://github.com/arkworks-rs/gemini/blob/main/src/kzg/msm/variable_base.rs#L20

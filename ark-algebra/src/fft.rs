@@ -30,8 +30,13 @@
 //!
 //! Everything is generic over [`DomainCoeff`], so coefficient types beyond plain field elements
 //! (e.g. secret-shared field elements) work unchanged.
+//!
+//! Two deliberate differences from `ark_poly`: the transforms do not zero-pad, so inputs must
+//! already have the domain size (the callers here always resize once, up front), and only
+//! radix-2 domains are supported — there is no mixed-radix fallback for sizes beyond the
+//! two-adicity of the field.
 
-use ark_ff::FftField;
+use ark_ff::{FftField, Field};
 use ark_poly::domain::DomainCoeff;
 use rayon::prelude::*;
 
@@ -46,6 +51,8 @@ const BUTTERFLY_CHUNK: usize = 1 << 10;
 /// This is the permutation that relates the output order of a DIF transform to the input order
 /// of a DIT transform: element `i` of a bit-reversed array is element `bit_reverse_index(i, ..)`
 /// of the same array in natural order.
+///
+/// `index` must be less than `2^log_len`; for larger indices the result is unspecified.
 #[inline]
 pub const fn bit_reverse_index(index: usize, log_len: u32) -> usize {
     (index as u64).reverse_bits().wrapping_shr(64 - log_len) as usize
@@ -56,15 +63,16 @@ pub const fn bit_reverse_index(index: usize, log_len: u32) -> usize {
 ///
 /// # Panics
 ///
-/// Panics if `values.len()` is not a power of two.
+/// Panics if `values.len()` is not a power of two. Lengths up to two (including zero) are
+/// no-ops, since those orders coincide.
 pub fn bit_reverse<T>(values: &mut [T]) {
+    if values.len() <= 2 {
+        return;
+    }
     assert!(
         values.len().is_power_of_two(),
         "bit reversal requires a power-of-two length"
     );
-    if values.len() <= 2 {
-        return;
-    }
     let log_len = values.len().trailing_zeros();
     for index in 1..values.len() - 1 {
         let reversed = bit_reverse_index(index, log_len);
@@ -78,7 +86,6 @@ pub fn bit_reverse<T>(values: &mut [T]) {
 #[derive(Clone, Debug)]
 pub struct Domain<F: FftField> {
     size: usize,
-    log_size: u32,
     group_gen: F,
     group_gen_inv: F,
     size_inv: F,
@@ -107,14 +114,24 @@ impl<F: FftField> Domain<F> {
     /// used by the circom witness map).
     ///
     /// Returns `None` if the domain is larger than the two-adicity of `F` allows, or if the
-    /// generator is not invertible.
+    /// generator does not have order exactly `size` (the rounded-up power of two).
     pub fn with_group_gen(num_coeffs: usize, group_gen: F) -> Option<Self> {
         let size = num_coeffs.next_power_of_two();
         let log_size = size.trailing_zeros();
         if log_size > F::TWO_ADICITY {
             return None;
         }
-        debug_assert_eq!(group_gen.pow([size as u64]), F::one());
+        // A generator of order exactly `size`: the half-way power must be -1 (it squares to 1,
+        // and 1 would mean a smaller order). A wrong generator would silently produce wrong
+        // transforms, so this is checked in release builds too.
+        let is_primitive = if size == 1 {
+            group_gen == F::one()
+        } else {
+            group_gen.pow([(size / 2) as u64]) == -F::one()
+        };
+        if !is_primitive {
+            return None;
+        }
         let group_gen_inv = group_gen.inverse()?;
         let size_inv = F::from(size as u64).inverse()?;
 
@@ -125,7 +142,6 @@ impl<F: FftField> Domain<F> {
 
         Some(Self {
             size,
-            log_size,
             group_gen,
             group_gen_inv,
             size_inv,
@@ -141,7 +157,7 @@ impl<F: FftField> Domain<F> {
 
     /// The base-two logarithm of [`Domain::size`].
     pub fn log_size(&self) -> u32 {
-        self.log_size
+        self.size.trailing_zeros()
     }
 
     /// The generator of the domain.
@@ -203,6 +219,23 @@ impl<F: FftField> Domain<F> {
     }
 }
 
+/// The powers `[base^0, base^1, .., base^(len - 1)]`, computed in parallel chunks.
+pub fn powers<F: Field>(base: F, len: usize) -> Vec<F> {
+    let mut table = vec![F::one(); len];
+    let chunk = len.div_ceil(rayon::current_num_threads()).max(1);
+    table
+        .par_chunks_mut(chunk)
+        .enumerate()
+        .for_each(|(chunk_index, values)| {
+            let mut current = base.pow([(chunk_index * chunk) as u64]);
+            for value in values.iter_mut() {
+                *value = current;
+                current *= base;
+            }
+        });
+    table
+}
+
 /// `twiddles[stage][j] = gen^(j * 2^stage)`, `size >> (stage + 1)` entries per stage.
 ///
 /// Stage 0 is computed in parallel chunks, the remaining stages are strided views of it, as in
@@ -211,27 +244,14 @@ fn build_twiddles<F: FftField>(size: usize, log_size: u32, generator: F) -> Vec<
     if log_size == 0 {
         return Vec::new();
     }
-    let half = size / 2;
-    let mut stage0 = vec![F::one(); half];
-    let chunk = half.div_ceil(rayon::current_num_threads()).max(1);
-    stage0
-        .par_chunks_mut(chunk)
-        .enumerate()
-        .for_each(|(chunk_index, values)| {
-            let mut current = generator.pow([(chunk_index * chunk) as u64]);
-            for value in values.iter_mut() {
-                *value = current;
-                current *= generator;
-            }
-        });
-
     let mut twiddles = Vec::with_capacity(log_size as usize);
+    twiddles.push(powers(generator, size / 2));
     for stage in 1..log_size as usize {
         let len = size >> (stage + 1);
         let stride = 1usize << stage;
-        twiddles.push((0..len).map(|j| stage0[j * stride]).collect());
+        let strided = (0..len).map(|j| twiddles[0][j * stride]).collect();
+        twiddles.push(strided);
     }
-    twiddles.insert(0, stage0);
     twiddles
 }
 
@@ -269,6 +289,7 @@ where
     G: Fn(&mut T, &mut T, F) + Copy + Send + Sync,
 {
     let half = values.len() / 2;
+    debug_assert_eq!(twiddles.len(), half, "twiddle stage does not match length");
     let (lo, hi) = values.split_at_mut(half);
     if parallel && half >= MIN_BUTTERFLIES_FOR_PARALLELIZATION {
         lo.par_iter_mut()
@@ -492,6 +513,31 @@ mod tests {
         domain.fft_in_to_out(&mut actual);
         bit_reverse(&mut actual);
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn with_group_gen_rejects_generators_of_wrong_order() {
+        let ark = Radix2EvaluationDomain::<Fr>::new(64).unwrap();
+        // order 32 instead of 64
+        assert!(Domain::with_group_gen(64, ark.group_gen.square()).is_none());
+        // order 1
+        assert!(Domain::with_group_gen(64, Fr::one()).is_none());
+        assert!(Domain::with_group_gen(64, ark.group_gen).is_some());
+        // a size-1 domain only accepts the identity
+        assert!(Domain::with_group_gen(1, Fr::one()).is_some());
+        assert!(Domain::with_group_gen(1, -Fr::one()).is_none());
+    }
+
+    #[test]
+    fn powers_match_sequential_computation() {
+        let base = Fr::from(3u64);
+        let table = powers(base, 100);
+        let mut current = Fr::one();
+        for value in &table {
+            assert_eq!(*value, current);
+            current *= base;
+        }
+        assert!(powers(base, 0).is_empty());
     }
 
     #[test]
