@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-v0.2.0...taceo-groth16-v0.2.1)
+
+### 🐛 Bug Fixes
+
+
+- *(groth16)* Guard witness-map misuse and drop clones in the reductions - ([f98461e](https://github.com/TaceoLabs/circom-helpers/commit/f98461e85d0004444e1bf72fd51491b331de54ff))
+
+### 🚜 Refactor
+
+
+- *(taceo-groth16)* Use taceo-ark-algebra for faster MSM/FFTs - ([e6a03e3](https://github.com/TaceoLabs/circom-helpers/commit/e6a03e328ceda52178b1bf16a3eb50a3af287f5e))
+
+
 ## [0.2.0](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-v0.1.3...taceo-groth16-v0.2.0)
 
 ### Build
