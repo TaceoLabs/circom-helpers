@@ -1,8 +1,8 @@
-use ark_ec::VariableBaseMSM;
+use ark_algebra::msm::msm_unchecked;
 use ark_ec::pairing::Pairing;
+use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{FftField, Field, LegendreSymbol, PrimeField};
-use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::utils::matrix::Matrix;
 use std::marker::PhantomData;
 use tracing::instrument;
@@ -79,39 +79,23 @@ fn roots_of_unity<F: PrimeField + FftField>() -> (F, Vec<F>) {
     (q, roots)
 }
 
-/* old way of computing root of unity, does not work for bls12_381:
-let root_of_unity = {
-    let domain_size_double = 2 * domain_size;
-    let domain_double =
-        D::new(domain_size_double).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-    domain_double.element(1)
-};
-new one is computed in the same way as in snarkjs (More precisely in ffjavascript/src/wasm_field1.js)
-calculate smallest quadratic non residue q (by checking q^((p-1)/2)=-1 mod p) also calculate smallest t (F::TRACE) s.t. p-1=2^s*t, s is the two_adicity
-use g=q^t (this is a 2^s-th root of unity) as (some kind of) generator and compute another domain by repeatedly squaring g, should get to 1 in the s+1-th step.
-then if log2(domain_size) equals s we take as root of unity q^2, and else we take the log2(domain_size) + 1-th element of the domain created above
-*/
+/// Returns the generator of the domain of size `2^pow` and the shift onto the coset, both as
+/// snarkjs computes them. The coset shift is the generator of the domain of twice the size, i.e.
+/// a square root of the domain generator.
+///
+/// The generator differs from the one `ark_poly::Radix2EvaluationDomain` would pick (the old
+/// arkworks-based computation also broke for bls12-381); it is computed as in snarkjs (more
+/// precisely, in ffjavascript/src/wasm_field1.js), see `roots_of_unity`.
 #[instrument(level = "debug", name = "root of unity", skip_all)]
-fn root_of_unity_for_groth16<F: PrimeField + FftField>(
-    pow: usize,
-    domain: &mut GeneralEvaluationDomain<F>,
-) -> F {
+pub fn groth16_roots_of_unity<F: PrimeField + FftField>(pow: usize) -> (F, F) {
     let (q, roots) = roots_of_unity::<F>();
-    match domain {
-        GeneralEvaluationDomain::Radix2(domain) => {
-            domain.group_gen = roots[pow];
-            domain.group_gen_inv = domain.group_gen.inverse().expect("can compute inverse");
-        }
-        GeneralEvaluationDomain::MixedRadix(domain) => {
-            domain.group_gen = roots[pow];
-            domain.group_gen_inv = domain.group_gen.inverse().expect("can compute inverse");
-        }
-    };
-    if u64::from(F::TWO_ADICITY) == domain.log_size_of_group() {
+    let group_gen = roots[pow];
+    let coset_shift = if F::TWO_ADICITY as usize == pow {
         q.square()
     } else {
-        roots[domain.log_size_of_group() as usize + 1]
-    }
+        roots[pow + 1]
+    };
+    (group_gen, coset_shift)
 }
 
 /// A Groth16 proof protocol.
@@ -121,7 +105,20 @@ pub struct Groth16<P: Pairing> {
     phantom_data: PhantomData<P>,
 }
 
-impl<P: Pairing> Groth16<P> {
+// The MSM only exists for short-Weierstrass curves, and generic pairing groups offer no way to
+// construct affine points from raw coordinates, so the prover names the curve configs behind
+// `P::G1`/`P::G2` explicitly. `C1` and `C2` are inferred at every concrete call site.
+impl<P, C1, C2> Groth16<P>
+where
+    P: Pairing<
+            G1 = Projective<C1>,
+            G1Affine = Affine<C1>,
+            G2 = Projective<C2>,
+            G2Affine = Affine<C2>,
+        >,
+    C1: SWCurveConfig<ScalarField = P::ScalarField>,
+    C2: SWCurveConfig<ScalarField = P::ScalarField>,
+{
     #[instrument(level = "debug", name = "Groth16 - Proof", skip_all)]
     pub fn prove<R: R1CSToQAP>(
         pkey: &ProvingKey<P>,
@@ -148,15 +145,15 @@ impl<P: Pairing> Groth16<P> {
     }
 
     fn calculate_coeff<C>(
-        initial: C,
-        query: &[C::Affine],
-        vk_param: C::Affine,
+        initial: Projective<C>,
+        query: &[Affine<C>],
+        vk_param: Affine<C>,
         witness: &[P::ScalarField],
-    ) -> C
+    ) -> Projective<C>
     where
-        C: CurveGroup<ScalarField = P::ScalarField>,
+        C: SWCurveConfig<ScalarField = P::ScalarField>,
     {
-        let acc = C::msm_unchecked(&query[1..], witness);
+        let acc = msm_unchecked(&query[1..], witness);
         let mut res = initial;
         res += query[0].into_group();
         res += vk_param.into_group();
@@ -210,14 +207,14 @@ impl<P: Pairing> Groth16<P> {
             },
             || {
                 let msm_l_query = tracing::debug_span!("msm l_query").entered();
-                let result = P::G1::msm_unchecked(&pkey.l_query, &witness[num_inputs..]);
+                let result = msm_unchecked(&pkey.l_query, &witness[num_inputs..]);
                 msm_l_query.exit();
                 result
             },
             || {
                 let msm_h_query = tracing::debug_span!("msm h_query").entered();
                 //perform the msm for h
-                let result = P::G1::msm_unchecked(&pkey.h_query, &h);
+                let result = msm_unchecked(&pkey.h_query, &h);
                 msm_h_query.exit();
                 result
             }

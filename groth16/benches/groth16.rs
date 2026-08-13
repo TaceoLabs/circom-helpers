@@ -1,4 +1,5 @@
 use ark_ec::pairing::Pairing;
+use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use ark_ff::{PrimeField, UniformRand};
 use ark_groth16::{Groth16, r1cs_to_qap::LibsnarkReduction};
 use ark_poly::EvaluationDomain;
@@ -156,12 +157,21 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
     }
 }
 
-fn groth16_prove_bench<P: Pairing>(
+fn groth16_prove_bench<P, C1, C2>(
     bench_name: &str,
     c: &mut Criterion,
     num_constraints: usize,
     num_variables: usize,
-) {
+) where
+    P: Pairing<
+            G1 = Projective<C1>,
+            G1Affine = Affine<C1>,
+            G2 = Projective<C2>,
+            G2Affine = Affine<C2>,
+        >,
+    C1: SWCurveConfig<ScalarField = P::ScalarField>,
+    C2: SWCurveConfig<ScalarField = P::ScalarField>,
+{
     let rng = &mut ark_std::rand::rngs::StdRng::seed_from_u64(0u64);
     let circuit = DummyCircuit::<P::ScalarField> {
         a: Some(P::ScalarField::rand(rng)),
@@ -299,7 +309,7 @@ fn groth16_prove_bench<P: Pairing>(
 }
 
 fn groth16_bench(c: &mut Criterion) {
-    groth16_prove_bench::<ark_bn254::Bn254>("bn254", c, NUM_CONSTRAINTS, NUM_VARIABLES);
+    groth16_prove_bench::<ark_bn254::Bn254, _, _>("bn254", c, NUM_CONSTRAINTS, NUM_VARIABLES);
 }
 
 criterion_group!(benches, groth16_bench);
