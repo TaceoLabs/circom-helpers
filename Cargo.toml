@@ -34,7 +34,7 @@ circom-witness-rs = "0.3"
 clap = { version = "4.4.8", features = ["derive"] }
 eyre = "0.6"
 hex = "0.4"
-num-bigint = "0.4"
+num-bigint = "0.5"
 num-traits = "0.2"
 postcard = "1"
 rand = "0.8"
