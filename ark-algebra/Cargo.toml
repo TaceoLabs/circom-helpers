@@ -18,7 +18,16 @@ ark-poly.workspace = true
 ark-std.workspace = true
 rayon.workspace = true
 
+[[bench]]
+harness = false
+name = "algebra"
+
 [dev-dependencies]
 ark-bls12-381.workspace = true
 ark-bn254.workspace = true
+# The benchmarks compare against the arkworks implementations, which have to run with rayon for
+# the comparison to be fair.
+ark-ec = { workspace = true, features = ["std", "parallel"] }
+ark-poly = { workspace = true, features = ["std", "parallel"] }
+criterion = "0.8"
 rand.workspace = true
