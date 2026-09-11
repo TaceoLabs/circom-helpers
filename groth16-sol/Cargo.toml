@@ -23,7 +23,7 @@ ark-ec.workspace = true
 ark-ff.workspace = true
 ark-groth16.workspace = true
 askama = { version = "0.15.4", optional = true }
-circom-types = { package = "taceo-circom-types", path = "../circom-types", version = "0.3.2", optional = true, default-features = false, features=["groth16", "proof", "public-input","verification-key"] }
+circom-types = { package = "taceo-circom-types", path = "../circom-types", version = "0.3.2", optional = true, default-features = false, features = ["bn254", "groth16", "proof", "public-input", "verification-key"] }
 clap = { workspace = true, features = ["derive"], optional = true }
 eyre.workspace = true
 ruint = { workspace = true, features = ["ark-ff-06"] }
