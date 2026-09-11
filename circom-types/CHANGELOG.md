@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.3.2...taceo-circom-types-v0.3.3)
+
+### ⚙️ Miscellaneous Tasks
+
+
+- Updated the following local packages: taceo-groth16 - ([0000000](https://github.com/TaceoLabs/circom-helpers/commit/0000000))
+
+
 ## [0.3.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.3.1...taceo-circom-types-v0.3.2)
 
 ### ⚙️ Miscellaneous Tasks

@@ -1,6 +1,6 @@
 [package]
 name = "taceo-circom-types"
-version = "0.3.2"
+version = "0.3.3"
 edition.workspace = true
 rust-version.workspace = true
 description = "This crate provides a Rust representation of the types in the `Circom` ecosystem and ways to de/serialize them in a way that is compatible to the existing implementation in snarkjs."
@@ -32,7 +32,7 @@ ark-groth16 = { workspace = true, optional = true }
 ark-poly = { workspace = true }
 ark-relations = { workspace = true, optional = true }
 ark-serde-compat = { package = "taceo-ark-serde-compat", path = "../ark-serde-compat", version = "0.6.1", default-features=false }
-groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.1", optional = true }
+groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.2", optional = true }
 ark-serialize = { workspace = true }
 ark-std = { workspace = true }
 byteorder = { workspace = true }
