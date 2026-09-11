@@ -1,6 +1,6 @@
 [package]
 name = "taceo-groth16-sol"
-version = "0.4.2"
+version = "0.4.3"
 edition.workspace = true
 rust-version.workspace = true
 description = "Generation of Solidity verifiers for Groth16 zkSNARKs, based on the Groth16 verifier template from gnark."

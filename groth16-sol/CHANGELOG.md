@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.4.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-sol-v0.4.2...taceo-groth16-sol-v0.4.3)
+
+### 🐛 Bug Fixes
+
+
+- *(groth16-sol)* Missing feature for bin dependency ([#87](https://github.com/TaceoLabs/circom-helpers/pull/87)) - ([441cce3](https://github.com/TaceoLabs/circom-helpers/commit/441cce3c78662adcef2b39ed81640d34d2a60aa5))
+
+
 ## [0.4.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-sol-v0.4.1...taceo-groth16-sol-v0.4.2)
 
 ### ⚙️ Miscellaneous Tasks
