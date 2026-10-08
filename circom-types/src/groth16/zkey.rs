@@ -447,14 +447,10 @@ mod bn254_tests {
 
     use super::*;
     use ark_bn254::{Bn254, Fq, Fq2, G1Affine, G1Projective, G2Affine, G2Projective};
-    use ark_ff::BigInteger256;
-    use num_bigint::BigUint;
     use std::fs::File;
 
-    use num_traits::{One, Zero};
+    use ark_ff::{One, Zero};
     use std::str::FromStr;
-
-    use std::convert::TryFrom;
 
     #[test]
     fn can_deser_bn254_mult2_key() {
@@ -572,9 +568,7 @@ mod bn254_tests {
         }
     }
     fn fq_from_str(s: &str) -> Fq {
-        BigInteger256::try_from(BigUint::from_str(s).unwrap())
-            .unwrap()
-            .into()
+        Fq::from_str(s).unwrap()
     }
 
     // Circom snarkjs code:
