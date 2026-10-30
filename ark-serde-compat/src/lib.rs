@@ -1202,6 +1202,10 @@ fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
     if UNSIGNED && v.starts_with('-') {
         return Err(SerdeCompatError("only expects positive numbers"));
     }
+    // BigInt::from_str is O(n^2) in the digit count, so bound the length before parsing.
+    if v.strip_prefix('-').unwrap_or(v).len() > max_decimal_digits::<F>() {
+        return Err(SerdeCompatError("number has too many digits for field"));
+    }
     if UNSIGNED {
         if v.chars().any(|x| !x.is_ascii_digit()) {
             return Err(SerdeCompatError("only expects digits 0-9 for numbers"));
@@ -1251,6 +1255,13 @@ fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
     let number = F::BigInt::try_from(number)
         .map_err(|()| SerdeCompatError("Cannot convert to underlying BigInt again"))?;
     Ok(F::from_bigint(number).expect("Is some due to checks above"))
+}
+
+/// Upper bound on the decimal digits of any value `<= F::MODULUS`.
+/// Uses 0.30103 >= log10(2) so the bound is never too small.
+#[inline]
+fn max_decimal_digits<F: PrimeField>() -> usize {
+    F::MODULUS_BIT_SIZE as usize * 30_103 / 100_000 + 1
 }
 
 #[inline]
