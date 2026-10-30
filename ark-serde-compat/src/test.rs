@@ -289,6 +289,43 @@ mod bn254_tests {
     }
 
     #[test]
+    fn test_rejects_overlong_strings_before_parsing() {
+        #[derive(Deserialize, Debug)]
+        struct UnsignedWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f")]
+            inner: ark_bn254::Fr,
+        }
+        #[derive(Deserialize, Debug)]
+        struct SignedWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_signed")]
+            inner: ark_bn254::Fr,
+        }
+        let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
+        let max_len = modulus.to_string().len();
+
+        // Exactly max_len digits still parses (modulus - 1 has max_len digits).
+        let json = format!(r#"{{"inner": "{}"}}"#, &modulus - 1u8);
+        let res = serde_json::from_str::<UnsignedWrapper>(&json).expect("Should parse modulus - 1");
+        assert_eq!(res.inner, -ark_bn254::Fr::ONE);
+        let json = format!(r#"{{"inner": "-{modulus}"}}"#);
+        let res = serde_json::from_str::<SignedWrapper>(&json).expect("Should parse -modulus");
+        assert_eq!(res.inner, ark_bn254::Fr::ZERO);
+
+        // Overlong inputs are rejected quickly, even if they are millions of digits.
+        for len in [max_len + 1, 1_000_000] {
+            let json = format!(r#"{{"inner": "1{}"}}"#, "0".repeat(len - 1));
+            let start = std::time::Instant::now();
+            let err =
+                serde_json::from_str::<UnsignedWrapper>(&json).expect_err("Should be an error");
+            assert!(err.to_string().contains("too many digits"));
+            let json = format!(r#"{{"inner": "-1{}"}}"#, "0".repeat(len - 1));
+            let err = serde_json::from_str::<SignedWrapper>(&json).expect_err("Should be an error");
+            assert!(err.to_string().contains("too many digits"));
+            assert!(start.elapsed().as_millis() < 500);
+        }
+    }
+
+    #[test]
     fn test_signed_parsing_edge_cases() {
         #[derive(Deserialize, Debug)]
         struct SignedWrapper {
