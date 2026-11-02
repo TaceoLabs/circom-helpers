@@ -31,13 +31,13 @@ ark-ff = { workspace = true }
 ark-groth16 = { workspace = true, optional = true }
 ark-poly = { workspace = true }
 ark-relations = { workspace = true, optional = true }
-ark-serde-compat = { package = "taceo-ark-serde-compat", path = "../ark-serde-compat", version = "0.6.2", default-features=false }
-groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.2", optional = true }
+ark-serde-compat = { package = "taceo-ark-serde-compat", path = "../ark-serde-compat", version = "0.6.2", default-features = false }
 ark-serialize = { workspace = true }
 ark-std = { workspace = true }
 byteorder = { workspace = true }
 clap = { workspace = true, features = ["env"], optional = true }
 eyre = { workspace = true, optional = true }
+groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.2", optional = true }
 rayon = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -47,35 +47,12 @@ tracing-subscriber = { workspace = true, features = ["env-filter"], optional = t
 
 [features]
 default = ["bn254", "full-groth16", "parallel"]
-bin = [
-  "bn254",
-  "dep:clap",
-  "dep:eyre",
-  "dep:tracing-subscriber",
-  "groth16",
-  "zkey"
-]
+bin = ["bn254", "dep:clap", "dep:eyre", "dep:tracing-subscriber", "groth16", "zkey"]
 bls12-381 = ["ark-serde-compat/bls12-381", "dep:ark-bls12-381"]
 bn254 = ["ark-serde-compat/bn254", "dep:ark-bn254"]
 full = ["bls12-381", "bn254", "full-groth16", "full-plonk"]
-full-groth16 = [
-  "groth16",
-  "proof",
-  "public-input",
-  "r1cs",
-  "verification-key",
-  "witness",
-  "zkey"
-]
-full-plonk = [
-  "plonk",
-  "proof",
-  "public-input",
-  "r1cs",
-  "verification-key",
-  "witness",
-  "zkey"
-]
+full-groth16 = ["groth16", "proof", "public-input", "r1cs", "verification-key", "witness", "zkey"]
+full-plonk = ["plonk", "proof", "public-input", "r1cs", "verification-key", "witness", "zkey"]
 groth16 = []
 parallel = ["dep:rayon"]
 plonk = []
@@ -85,3 +62,6 @@ r1cs = []
 verification-key = ["dep:ark-groth16"]
 witness = []
 zkey = ["dep:ark-groth16", "dep:ark-relations", "dep:groth16"]
+
+[lints]
+workspace = true

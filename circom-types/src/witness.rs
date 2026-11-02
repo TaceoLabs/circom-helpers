@@ -30,7 +30,7 @@ pub enum WitnessParserError {
     /// Error describing that the number of sections in the file is invalid
     #[error("Wrong number of sections is {0}, but got {1}")]
     InvalidSectionNumber(u32, u32),
-    /// Error describing that the ScalarField from curve does not match in witness file
+    /// Error describing that the `ScalarField` from curve does not match in witness file
     #[error("ScalarField from curve does not match in witness file")]
     WrongScalarField,
     /// Error during reading Circom file header
@@ -47,6 +47,14 @@ pub struct Witness<F> {
 
 impl<F: PrimeField> Witness<F> {
     /// Deserializes a [`Witness`] from a reader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a `u32` does not fit into `usize`, which can only happen on targets narrower than 32 bits.
     pub fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
         tracing::trace!("trying to read witness");
         reader_utils::read_header(&mut reader, WITNESS_HEADER)?;

@@ -41,7 +41,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> From<ark_groth16::Proof<P>> for P
             pi_b: proof.b,
             pi_c: proof.c,
             protocol: "groth16".to_string(),
-            curve: P::get_circom_name().to_string(),
+            curve: P::get_circom_name().clone(),
         }
     }
 }
