@@ -117,7 +117,9 @@ impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
             let offset = reader.stream_position()?;
             sec_offsets.insert(sec_type, offset);
             sec_sizes.insert(sec_type, sec_size);
-            reader.seek(SeekFrom::Current(sec_size as i64))?;
+            let skip = i64::try_from(sec_size)
+                .map_err(|_| Error::new(ErrorKind::InvalidData, "section size too large"))?;
+            reader.seek(SeekFrom::Current(skip))?;
         }
 
         let header_type = 1;
@@ -194,8 +196,13 @@ impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
 
         let wire_mapping = read_map(&mut reader, *wire2label_size, num_variables)?;
 
-        let num_inputs = (1 + n_pub_in + n_pub_out) as usize;
-        let num_aux = num_variables - num_inputs;
+        let num_inputs = 1 + n_pub_in as usize + n_pub_out as usize;
+        let num_aux = num_variables.checked_sub(num_inputs).ok_or_else(|| {
+            Error::new(
+                ErrorKind::InvalidData,
+                "fewer variables than public inputs and outputs",
+            )
+        })?;
         Ok(R1CS {
             num_aux,
             num_inputs,
@@ -216,7 +223,8 @@ fn read_constraint_vec<R: Read, P: Pairing>(
     field_size: usize,
 ) -> Result<ConstraintVec<P>> {
     let n_vec = reader.read_u32::<LittleEndian>()? as usize;
-    let mut vec = Vec::with_capacity(n_vec);
+    // no preallocation, the count comes from the file
+    let mut vec = Vec::new();
     for _ in 0..n_vec {
         vec.push((
             reader.read_u32::<LittleEndian>()? as usize,
@@ -232,7 +240,7 @@ fn read_constraints<R: Read, P: Pairing>(
     field_size: usize,
 ) -> Result<Vec<Constraints<P>>> {
     // todo check section size
-    let mut vec = Vec::with_capacity(n_constraints);
+    let mut vec = Vec::new();
     for _ in 0..n_constraints {
         vec.push((
             read_constraint_vec::<_, P>(&mut reader, field_size)?,
@@ -250,11 +258,11 @@ fn read_map<R: Read>(mut reader: R, size: u64, n_wires: usize) -> Result<Vec<u64
             "Invalid map section size",
         ))?;
     }
-    let mut vec = Vec::with_capacity(n_wires);
+    let mut vec = Vec::new();
     for _ in 0..n_wires {
         vec.push(reader.read_u64::<LittleEndian>()?);
     }
-    if vec[0] != 0 {
+    if vec.first() != Some(&0) {
         Err(std::io::Error::new(
             ErrorKind::InvalidData,
             "Wire 0 should always be mapped to 0",
@@ -336,5 +344,78 @@ mod bn254_tests {
             .unwrap()
         );
         assert_eq!(r1cs.wire_mapping, vec![0, 1, 2, 3]);
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "bn254")]
+mod malformed_bn254_tests {
+    use ark_bn254::Bn254;
+
+    use super::*;
+    use crate::tests::{groth16_bn254_kats, patch_u32, section_offset};
+    use std::io::Cursor;
+
+    // header section layout for bn254: field_size, prime, then n_wires, ..., n_constraints
+    const N_WIRES: usize = 4 + 32;
+    const N_CONSTRAINTS: usize = N_WIRES + 4 * 4 + 8;
+
+    fn parse_patched(patch: impl FnOnce(&mut [u8])) -> Result<R1CS<Bn254>> {
+        let mut bytes = std::fs::read(groth16_bn254_kats().join("circuit.r1cs")).unwrap();
+        patch(&mut bytes);
+        R1CS::<Bn254>::from_reader(Cursor::new(bytes))
+    }
+
+    fn set_wire_map_len(bytes: &mut [u8], len: u64) {
+        let len_pos = section_offset(bytes, 3) - 8;
+        bytes[len_pos..len_pos + 8].copy_from_slice(&len.to_le_bytes());
+    }
+
+    #[test]
+    fn rejects_huge_n_constraints() {
+        parse_patched(|b| {
+            let h = section_offset(b, 1);
+            patch_u32(b, h + N_CONSTRAINTS, u32::MAX);
+        })
+        .expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_huge_constraint_vec() {
+        parse_patched(|b| {
+            let s = section_offset(b, 2);
+            patch_u32(b, s, u32::MAX);
+        })
+        .expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_huge_wire_map() {
+        parse_patched(|b| {
+            let h = section_offset(b, 1);
+            patch_u32(b, h + N_WIRES, u32::MAX);
+            set_wire_map_len(b, u64::from(u32::MAX) * 8);
+        })
+        .expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_zero_wires() {
+        parse_patched(|b| {
+            let h = section_offset(b, 1);
+            patch_u32(b, h + N_WIRES, 0);
+            set_wire_map_len(b, 0);
+        })
+        .expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_fewer_wires_than_inputs() {
+        parse_patched(|b| {
+            let h = section_offset(b, 1);
+            patch_u32(b, h + N_WIRES, 1);
+            set_wire_map_len(b, 8);
+        })
+        .expect_err("should fail");
     }
 }

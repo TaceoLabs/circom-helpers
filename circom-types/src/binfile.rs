@@ -12,6 +12,9 @@ use crate::traits::CircomArkworksPairingBridge;
 
 pub(crate) type ZkeyParserResult<T> = std::result::Result<T, ZkeyParserError>;
 
+/// Circom zkey files have at most 14 sections (plonk).
+const MAX_SECTIONS: usize = 32;
+
 /// Error type describing errors during parsing zkey files
 #[derive(Debug, Error)]
 pub enum ZkeyParserError {
@@ -60,6 +63,11 @@ impl<P: Pairing + CircomArkworksPairingBridge> BinFile<P> {
             .try_into()
             .expect("u32 fits into usize");
         tracing::debug!("we got {} sections in binfile", num_sections);
+        if num_sections > MAX_SECTIONS {
+            return Err(ZkeyParserError::CorruptedBinFile(format!(
+                "too many sections: {num_sections}"
+            )));
+        }
         let mut sections = vec![vec![]; num_sections];
 
         for _ in 0..num_sections {
@@ -67,19 +75,26 @@ impl<P: Pairing + CircomArkworksPairingBridge> BinFile<P> {
                 .read_u32::<LittleEndian>()?
                 .try_into()
                 .expect("u32 fits into usize");
-            let section_length: usize = reader
-                .read_u64::<LittleEndian>()?
-                .try_into()
-                .expect("u64 fits into usize");
+            let section_length = reader.read_u64::<LittleEndian>()?;
 
+            if section_id == 0 || section_id > num_sections {
+                return Err(ZkeyParserError::CorruptedBinFile(format!(
+                    "invalid section id {section_id}"
+                )));
+            }
             let section = &mut sections[section_id - 1];
             if !section.is_empty() {
                 return Err(ZkeyParserError::CorruptedBinFile(
                     "sections are empty!".to_owned(),
                 ));
             }
-            section.resize(section_length, 0);
-            reader.read_exact(section)?;
+            // do not allocate based on the claimed length, only on what we actually read
+            reader.by_ref().take(section_length).read_to_end(section)?;
+            if section.len() as u64 != section_length {
+                return Err(ZkeyParserError::CorruptedBinFile(format!(
+                    "section {section_id} is shorter than its claimed length"
+                )));
+            }
         }
         tracing::debug!("successfully read bin file!");
         Ok(Self {
@@ -90,12 +105,69 @@ impl<P: Pairing + CircomArkworksPairingBridge> BinFile<P> {
         })
     }
 
-    pub(crate) fn take_section(&mut self, id: usize) -> Cursor<Vec<u8>> {
-        Cursor::new(std::mem::take(&mut self.sections[id - 1]))
+    pub(crate) fn take_section(&mut self, id: usize) -> ZkeyParserResult<Cursor<Vec<u8>>> {
+        self.take_section_raw(id).map(Cursor::new)
     }
 
-    #[cfg(feature = "plonk")]
-    pub(crate) fn take_section_raw(&mut self, id: usize) -> Vec<u8> {
-        std::mem::take(&mut self.sections[id - 1])
+    pub(crate) fn take_section_raw(&mut self, id: usize) -> ZkeyParserResult<Vec<u8>> {
+        id.checked_sub(1)
+            .and_then(|idx| self.sections.get_mut(idx))
+            .map(std::mem::take)
+            .ok_or_else(|| ZkeyParserError::CorruptedBinFile(format!("missing section {id}")))
+    }
+}
+
+/// Checks that a section holds at least `count` elements of `elem_size` bytes. Used to validate
+/// counts from the header before allocating based on them.
+pub(crate) fn check_section_len(
+    section_len: usize,
+    count: usize,
+    elem_size: usize,
+    name: &str,
+) -> ZkeyParserResult<()> {
+    match count.checked_mul(elem_size) {
+        Some(expected) if section_len >= expected => Ok(()),
+        _ => Err(ZkeyParserError::CorruptedBinFile(format!(
+            "section {name} ({section_len} bytes) is too short for {count} elements"
+        ))),
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "bn254")]
+mod tests {
+    use ark_bn254::Bn254;
+
+    use super::BinFile;
+
+    fn bin_file(n_sections: u32, sections: &[(u32, u64)]) -> Vec<u8> {
+        let mut bytes = b"zkey".to_vec();
+        bytes.extend_from_slice(&1u32.to_le_bytes());
+        bytes.extend_from_slice(&n_sections.to_le_bytes());
+        for (id, len) in sections {
+            bytes.extend_from_slice(&id.to_le_bytes());
+            bytes.extend_from_slice(&len.to_le_bytes());
+        }
+        bytes
+    }
+
+    #[test]
+    fn rejects_huge_section_count() {
+        let bytes = bin_file(u32::MAX, &[]);
+        BinFile::<Bn254>::new(&mut bytes.as_slice()).expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_section_longer_than_file() {
+        let bytes = bin_file(1, &[(1, 1 << 40)]);
+        BinFile::<Bn254>::new(&mut bytes.as_slice()).expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_invalid_section_id() {
+        for id in [0, 2, u32::MAX] {
+            let bytes = bin_file(1, &[(id, 0)]);
+            BinFile::<Bn254>::new(&mut bytes.as_slice()).expect_err("should fail");
+        }
     }
 }

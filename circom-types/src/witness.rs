@@ -69,6 +69,9 @@ impl<F: PrimeField> Witness<F> {
         let _ = reader.read_u32::<LittleEndian>()?;
         let _ = reader.read_u64::<LittleEndian>()?;
         let n8 = reader.read_u32::<LittleEndian>()?;
+        if n8 != F::MODULUS_BIT_SIZE.div_ceil(8) {
+            return Err(WitnessParserError::WrongScalarField);
+        }
         let n8 = usize::try_from(n8).expect("u32 fits into usize");
         let mut buf = vec![0; n8];
         reader.read_exact(buf.as_mut_slice())?;
@@ -145,5 +148,21 @@ mod bls12_381_tests {
                 ],
             }
         );
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "bn254")]
+mod malformed_bn254_tests {
+    use crate::tests::{groth16_bn254_kats, patch_u32, section_offset};
+
+    use super::Witness;
+
+    #[test]
+    fn rejects_huge_n8() {
+        let mut bytes = std::fs::read(groth16_bn254_kats().join("witness.wtns")).unwrap();
+        let s = section_offset(&bytes, 1);
+        patch_u32(&mut bytes, s, u32::MAX);
+        Witness::<ark_bn254::Fr>::from_reader(bytes.as_slice()).expect_err("should fail");
     }
 }
