@@ -591,6 +591,29 @@ mod bn254_tests {
     }
 
     #[test]
+    fn test_large_sequences_binary_roundtrip() {
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        struct Large {
+            #[serde(with = "crate::field_seq")]
+            fields: Vec<ark_bn254::Fr>,
+            #[serde(with = "bn254::g1_seq")]
+            points: Vec<ark_bn254::G1Affine>,
+        }
+
+        let mut rng = rand::thread_rng();
+        let should = Large {
+            fields: (0..200).map(|_| ark_bn254::Fr::rand(&mut rng)).collect(),
+            points: (0..200)
+                .map(|_| ark_bn254::G1Affine::rand(&mut rng))
+                .collect(),
+        };
+        let mut buf = Vec::new();
+        ciborium::into_writer(&should, &mut buf).expect("can cbor serialize");
+        let is: Large = ciborium::from_reader(buf.as_slice()).expect("can deserialize cbor");
+        assert_eq!(should, is);
+    }
+
+    #[test]
     fn test_untrusted_seq_length_does_not_allocate() {
         #[derive(Deserialize, Debug)]
         #[allow(

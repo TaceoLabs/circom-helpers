@@ -104,7 +104,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineSeqVisitor::<true> { size: None };
-    crate::deser_seq_or_bytes(deserializer, visitor)
+    crate::deser_seq_or_byte_buf(deserializer, visitor)
 }
 
 /// Deserialize a sequence of BabyJubJub affine points from an array of coordinate pair arrays without validation.
@@ -119,7 +119,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineSeqVisitor::<false> { size: None };
-    crate::deser_seq_or_bytes(deserializer, visitor)
+    crate::deser_seq_or_byte_buf(deserializer, visitor)
 }
 
 /// Deserialize am array of BabyJubJub affine points from an array of coordinate pair arrays.
