@@ -57,6 +57,7 @@ use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use ark_ec::{AffineRepr, VariableBaseMSM};
 use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
 use rayon::prelude::*;
+use std::cmp::Ordering;
 
 /// Window sizes at least this large use the batch-affine bucket accumulation. Below it, the
 /// buckets are few enough that batches conflict constantly and the extended-Jacobian
@@ -210,13 +211,12 @@ fn window_major_digits<P: SWCurveConfig>(
 
 #[inline]
 fn encode_digit(digit: i64) -> u32 {
-    if digit == 0 {
-        0
-    } else if digit > 0 {
-        (digit as u32) << 1
-    } else {
-        (((-digit) as u32) << 1) | 1
-    }
+    let magnitude = digit.unsigned_abs() << 1;
+    let encoded = match digit.cmp(&0) {
+        Ordering::Less => magnitude | 1,
+        Ordering::Equal | Ordering::Greater => magnitude,
+    };
+    u32::try_from(encoded).expect("digits are far below 2^31 in magnitude")
 }
 
 /// The sum of one window, with buckets in affine coordinates.
@@ -522,10 +522,10 @@ fn make_digits(a: &impl BigInteger, w: usize, num_bits: usize) -> impl Iterator<
 
         // Recenter coefficients from [0,2^w) to [-2^w/2, 2^w/2)
         carry = (coef + radix / 2) >> w;
-        let mut digit = (coef as i64) - (carry << w) as i64;
+        let mut digit = coef.cast_signed() - (carry << w).cast_signed();
 
         if i == digits_count - 1 {
-            digit += (carry << w) as i64;
+            digit += (carry << w).cast_signed();
         }
         digit
     })
@@ -641,7 +641,7 @@ mod tests {
         let generator = G1Projective::generator();
         let bases = G1Projective::normalize_batch(
             &(0..size)
-                .map(|index| generator * Fr::from((index % 16 + 1) as u64))
+                .map(|index| generator * Fr::from(u64::try_from(index % 16 + 1).unwrap()))
                 .collect::<Vec<_>>(),
         );
         let scalars = (0..size)
@@ -655,6 +655,8 @@ mod tests {
 
     #[test]
     fn handles_top_window_carry() {
+        type BlsFr = ark_bls12_381::Fr;
+        type BlsG1 = ark_bls12_381::G1Projective;
         // The last window absorbs the final carry, so its digits can reach `2^window_size` while
         // every other window stays within `2^(window_size - 1)`. Whether that overflows an
         // undersized bucket array depends on how many bits of the modulus the last window covers,
@@ -671,8 +673,6 @@ mod tests {
             }
         }
 
-        type BlsFr = ark_bls12_381::Fr;
-        type BlsG1 = ark_bls12_381::G1Projective;
         for size in [1, 3, 31, 32, 5000] {
             let projective = (0..size).map(|_| BlsG1::rand(&mut rng)).collect::<Vec<_>>();
             let bases = BlsG1::normalize_batch(&projective);
