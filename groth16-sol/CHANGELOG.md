@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.4.4](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-sol-v0.4.3...taceo-groth16-sol-v0.4.4)
+
+### Build
+
+
+- *(deps)* Update askama requirement from 0.15.4 to 0.16.1 ([#86](https://github.com/TaceoLabs/circom-helpers/pull/86)) - ([d98a952](https://github.com/TaceoLabs/circom-helpers/commit/d98a952eb12db125e5b77680a5ab288ef517f4ad))
+
+
 ## [0.4.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-sol-v0.4.2...taceo-groth16-sol-v0.4.3)
 
 ### 🐛 Bug Fixes

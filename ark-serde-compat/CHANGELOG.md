@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.6.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.6.1...taceo-ark-serde-compat-v0.6.2)
+
+### 🐛 Bug Fixes
+
+
+- *(ark-serde-compat)* Deserialize long binary sequences via byte_buf - ([515184a](https://github.com/TaceoLabs/circom-helpers/commit/515184a97da89c03cf1d973d931dd9fb4c038228))
+- *(ark-serde-compat)* Do not trust sequence size hints and enforce fixed shapes while reading - ([1321087](https://github.com/TaceoLabs/circom-helpers/commit/132108793744bedfe30f12f7f4e8095826743ae4))
+- *(ark-serde-compat)* Bound decimal string length before big-integer parsing - ([ba12a01](https://github.com/TaceoLabs/circom-helpers/commit/ba12a016088ac0bb46751a92955ae648577d2a05))
+
+
 ## [0.6.1](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.6.0...taceo-ark-serde-compat-v0.6.1)
 
 ### 🐛 Bug Fixes
