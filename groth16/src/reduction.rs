@@ -17,6 +17,10 @@ use super::groth16_roots_of_unity;
 /// We do not implement the other methods of the arkworks trait, as we do not need them during proof generation.
 pub trait R1CSToQAP {
     /// Computes a QAP witness corresponding to the R1CS witness, using the provided `ConstraintMatrices`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails.
     fn witness_map_from_matrices<P: Pairing>(
         matrices: &ConstraintMatrices<P::ScalarField>,
         witness: &[P::ScalarField],

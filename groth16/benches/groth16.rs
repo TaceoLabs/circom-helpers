@@ -1,3 +1,9 @@
+//! Benchmarks of the Groth16 prover against `ark-groth16`.
+#![allow(
+    clippy::unwrap_used,
+    reason = "benchmarks and tests may panic on failure"
+)]
+
 use ark_ec::pairing::Pairing;
 use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use ark_ff::{PrimeField, UniformRand};
@@ -28,7 +34,10 @@ const NUM_VARIABLES: usize = (1 << 16) - 100;
 pub struct CircomReduction;
 
 impl ark_groth16::r1cs_to_qap::R1CSToQAP for CircomReduction {
-    #[allow(clippy::type_complexity)]
+    #[allow(
+        clippy::type_complexity,
+        reason = "signature fixed by the `R1CSToQAP` trait"
+    )]
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
@@ -144,7 +153,8 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
         })?;
 
         for _ in 0..(self.num_variables - 3) {
-            let _ = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
+            let _variable =
+                cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
         }
 
         for _ in 0..self.num_constraints - 1 {
@@ -184,7 +194,10 @@ fn groth16_prove_bench<P, C1, C2>(
     let cs = ConstraintSystem::new_ref();
     cs.set_optimization_goal(OptimizationGoal::Constraints);
     circuit.generate_constraints(cs.clone()).unwrap();
-    assert!(cs.is_satisfied().unwrap());
+    assert!(
+        cs.is_satisfied().unwrap(),
+        "constraint system must be satisfied"
+    );
     cs.finalize();
     let cs_matrices = cs.to_matrices().unwrap();
     let r1cs_matrices = cs_matrices
@@ -215,97 +228,57 @@ fn groth16_prove_bench<P, C1, C2>(
     ));
     let (r, s) = (P::ScalarField::rand(rng), P::ScalarField::rand(rng));
 
-    let proof = Groth16::<P, CircomReduction>::create_proof_with_reduction_and_matrices(
-        &pk,
-        r,
-        s,
-        r1cs_matrices,
-        num_inputs,
-        num_constraints,
-        &full_assignment,
-    )
-    .unwrap();
-    let proof2 = taceo_groth16::Groth16::<P>::prove::<taceo_groth16::CircomReduction>(
-        &pk,
-        r,
-        s,
-        &local_matrices,
-        &full_assignment,
-    )
-    .unwrap();
-    assert_eq!(proof, proof2);
-    let proof = Groth16::<P>::create_proof_with_reduction_and_matrices(
-        &pk,
-        r,
-        s,
-        r1cs_matrices,
-        num_inputs,
-        num_constraints,
-        &full_assignment,
-    )
-    .unwrap();
-    let proof2 = taceo_groth16::Groth16::<P>::prove::<taceo_groth16::LibSnarkReduction>(
-        &pk,
-        r,
-        s,
-        &local_matrices,
-        &full_assignment,
-    )
-    .unwrap();
-    assert_eq!(proof, proof2);
+    let ark_circom = || {
+        Groth16::<P, CircomReduction>::create_proof_with_reduction_and_matrices(
+            &pk,
+            r,
+            s,
+            r1cs_matrices,
+            num_inputs,
+            num_constraints,
+            &full_assignment,
+        )
+        .unwrap()
+    };
+    let ark_libsnark = || {
+        Groth16::<P>::create_proof_with_reduction_and_matrices(
+            &pk,
+            r,
+            s,
+            r1cs_matrices,
+            num_inputs,
+            num_constraints,
+            &full_assignment,
+        )
+        .unwrap()
+    };
+    let this_circom = || {
+        taceo_groth16::Groth16::<P>::prove::<taceo_groth16::CircomReduction>(
+            &pk,
+            r,
+            s,
+            &local_matrices,
+            &full_assignment,
+        )
+        .unwrap()
+    };
+    let this_libsnark = || {
+        taceo_groth16::Groth16::<P>::prove::<taceo_groth16::LibSnarkReduction>(
+            &pk,
+            r,
+            s,
+            &local_matrices,
+            &full_assignment,
+        )
+        .unwrap()
+    };
+    assert_eq!(ark_circom(), this_circom(), "proofs must match");
+    assert_eq!(ark_libsnark(), this_libsnark(), "proofs must match");
 
-    group.bench_function("ark-groth16/CircomReduction", |b| {
-        b.iter(|| {
-            let _ = Groth16::<P, CircomReduction>::create_proof_with_reduction_and_matrices(
-                &pk,
-                r,
-                s,
-                r1cs_matrices,
-                num_inputs,
-                num_constraints,
-                &full_assignment,
-            )
-            .unwrap();
-        })
-    });
-    group.bench_function("ark-groth16/LibSnarkReduction", |b| {
-        b.iter(|| {
-            let _ = Groth16::<P>::create_proof_with_reduction_and_matrices(
-                &pk,
-                r,
-                s,
-                r1cs_matrices,
-                num_inputs,
-                num_constraints,
-                &full_assignment,
-            )
-            .unwrap();
-        })
-    });
-    group.bench_function("this-groth16/CircomReduction", |b| {
-        b.iter(|| {
-            let _ = taceo_groth16::Groth16::<P>::prove::<taceo_groth16::CircomReduction>(
-                &pk,
-                r,
-                s,
-                &local_matrices,
-                &full_assignment,
-            )
-            .unwrap();
-        })
-    });
-    group.bench_function("this-groth16/LibSnarkReduction", |b| {
-        b.iter(|| {
-            let _ = taceo_groth16::Groth16::<P>::prove::<taceo_groth16::LibSnarkReduction>(
-                &pk,
-                r,
-                s,
-                &local_matrices,
-                &full_assignment,
-            )
-            .unwrap();
-        })
-    });
+    group.bench_function("ark-groth16/CircomReduction", |b| b.iter(&ark_circom));
+    group.bench_function("ark-groth16/LibSnarkReduction", |b| b.iter(&ark_libsnark));
+    group.bench_function("this-groth16/CircomReduction", |b| b.iter(&this_circom));
+    group.bench_function("this-groth16/LibSnarkReduction", |b| b.iter(&this_libsnark));
 }
 
 fn groth16_bench(c: &mut Criterion) {

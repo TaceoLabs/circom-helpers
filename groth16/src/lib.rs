@@ -1,3 +1,5 @@
+//! An implementation of the Groth16 zkSNARK proof system.
+
 use ark_algebra::msm::msm_unchecked;
 use ark_ec::pairing::Pairing;
 use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
@@ -26,11 +28,11 @@ pub struct ConstraintMatrices<F: Field> {
     pub num_witness_variables: usize,
     /// The number of constraints in the constraint system.
     pub num_constraints: usize,
-    /// The number of non_zero entries in the A matrix.
+    /// The number of non-zero entries in the A matrix.
     pub a_num_non_zero: usize,
-    /// The number of non_zero entries in the B matrix.
+    /// The number of non-zero entries in the B matrix.
     pub b_num_non_zero: usize,
-    /// The number of non_zero entries in the C matrix.
+    /// The number of non-zero entries in the C matrix.
     pub c_num_non_zero: usize,
     /// The A matrix in sparse representation.
     pub a: Matrix<F>,
@@ -63,7 +65,7 @@ pub(crate) use rayon_join3;
 ///
 /// We calculate smallest quadratic non residue q (by checking q^((p-1)/2)=-1 mod p). We also calculate smallest t s.t. p-1=2^s*t, s is the two adicity.
 /// We use g=q^t (this is a 2^s-th root of unity) as (some kind of) generator and compute another domain by repeatedly squaring g, should get to 1 in the s+1-th step.
-/// Then if log2(\text{domain_size}) equals s we take q^2 as root of unity. Else we take the log2(\text{domain_size}) + 1-th element of the domain created above.
+/// Then if `log2(\text{domain_size})` equals s we take q^2 as root of unity. Else we take the `log2(\text{domain_size}) + 1`-th element of the domain created above.
 fn roots_of_unity<F: PrimeField + FftField>() -> (F, Vec<F>) {
     let mut roots = vec![F::zero(); F::TWO_ADICITY as usize + 1];
     let mut q = F::one();
@@ -85,7 +87,7 @@ fn roots_of_unity<F: PrimeField + FftField>() -> (F, Vec<F>) {
 ///
 /// The generator differs from the one `ark_poly::Radix2EvaluationDomain` would pick (the old
 /// arkworks-based computation also broke for bls12-381); it is computed as in snarkjs (more
-/// precisely, in ffjavascript/src/wasm_field1.js), see `roots_of_unity`.
+/// precisely, in `ffjavascript/src/wasm_field1.js`), see `roots_of_unity`.
 ///
 /// # Panics
 ///
@@ -128,6 +130,12 @@ where
     C1: SWCurveConfig<ScalarField = P::ScalarField>,
     C2: SWCurveConfig<ScalarField = P::ScalarField>,
 {
+    /// Creates a Groth16 proof for `witness` using the randomness `r` and `s`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the witness length does not match the constraint matrices, or if the
+    /// witness map does not match the proving key.
     #[instrument(level = "debug", name = "Groth16 - Proof", skip_all)]
     pub fn prove<R: R1CSToQAP>(
         pkey: &ProvingKey<P>,
@@ -146,7 +154,7 @@ where
             pkey,
             r,
             s,
-            h,
+            &h,
             witness,
             matrices.num_instance_variables,
         )?;
@@ -175,7 +183,7 @@ where
         pkey: &ProvingKey<P>,
         r: P::ScalarField,
         s: P::ScalarField,
-        h: Vec<P::ScalarField>,
+        h: &[P::ScalarField],
         witness: &[P::ScalarField],
         num_inputs: usize,
     ) -> eyre::Result<Proof<P>> {
@@ -233,7 +241,7 @@ where
             || {
                 let msm_h_query = tracing::debug_span!("msm h_query").entered();
                 //perform the msm for h
-                let result = msm_unchecked(&pkey.h_query, &h);
+                let result = msm_unchecked(&pkey.h_query, h);
                 msm_h_query.exit();
                 result
             }
@@ -269,6 +277,10 @@ where
 impl<P: Pairing> Groth16<P> {
     /// Verify a Groth16 proof.
     /// This method is a wrapper arkworks Groth16 and does not use MPC.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails.
     pub fn verify(
         vk: &VerifyingKey<P>,
         proof: &Proof<P>,

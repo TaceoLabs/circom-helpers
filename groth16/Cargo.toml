@@ -32,3 +32,6 @@ ark-poly.workspace = true
 ark-snark.workspace = true
 ark-std.workspace = true
 criterion = "0.8"
+
+[lints]
+workspace = true
