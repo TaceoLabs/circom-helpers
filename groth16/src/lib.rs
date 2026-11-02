@@ -139,7 +139,7 @@ where
         let witness_len = witness.len();
         let witness_should_len = matrices.num_witness_variables + matrices.num_instance_variables;
         if witness_len != witness_should_len {
-            eyre::bail!("expected witness len {witness_should_len}, got len {witness_len}",)
+            eyre::bail!("expected witness len {witness_should_len}, got len {witness_len}",);
         }
         let h = R::witness_map_from_matrices::<P>(matrices, witness)?;
         let proof = Self::create_proof_with_assignment(
