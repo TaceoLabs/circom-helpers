@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.3.2...taceo-circom-types-v0.3.3)
+
+### ⚙️ Miscellaneous Tasks
+
+
+- *(circom-types)* Clean up dependencies in tests ([#95](https://github.com/TaceoLabs/circom-helpers/pull/95)) - ([181dc19](https://github.com/TaceoLabs/circom-helpers/commit/181dc1938726f2e5536bcfd40fa62dd68a13db4f))
+
+
 ## [0.3.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.3.1...taceo-circom-types-v0.3.2)
 
 ### ⚙️ Miscellaneous Tasks

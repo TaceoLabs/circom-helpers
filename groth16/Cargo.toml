@@ -1,6 +1,6 @@
 [package]
 name = "taceo-groth16"
-version = "0.2.1"
+version = "0.2.2"
 edition.workspace = true
 rust-version.workspace = true
 description = "An implementation of the Groth16 zkSNARK proof system."
@@ -16,7 +16,7 @@ harness = false
 name = "groth16"
 
 [dependencies]
-ark-algebra = { package = "taceo-ark-algebra", path = "../ark-algebra", version = "0.1.0" }
+ark-algebra = { package = "taceo-ark-algebra", path = "../ark-algebra", version = "0.1.1" }
 ark-ec.workspace = true
 ark-ff.workspace = true
 ark-groth16 = { workspace = true, features = ["parallel"] }
