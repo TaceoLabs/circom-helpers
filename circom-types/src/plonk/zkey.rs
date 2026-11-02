@@ -33,7 +33,7 @@ use ark_serialize::CanonicalDeserialize;
 use std::io::{Cursor, Read};
 
 use crate::{
-    binfile::{BinFile, ZkeyParserError, ZkeyParserResult},
+    binfile::{BinFile, ZkeyParserError, ZkeyParserResult, check_section_len},
     traits::CircomArkworksPairingBridge,
 };
 
@@ -163,27 +163,63 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
         let mut binfile = BinFile::<P>::new(&mut reader)?;
 
         tracing::debug!("start transforming bin file into zkey...");
-        let header = PlonkHeader::<P>::read(&mut binfile.take_section(2))?;
+        let header = PlonkHeader::<P>::read(&mut binfile.take_section(2)?)?;
         let n_vars = header.n_vars;
         let n_additions = header.n_additions;
         let n_constraints = header.n_constraints;
         let n_public = header.n_public;
         let domain_size = header.domain_size;
+        let overflow = || ZkeyParserError::CorruptedBinFile("section size overflows".to_owned());
+        let n8r = header.n8r;
+        // coefficients and the 4x extended evaluations
+        let poly_len = domain_size
+            .checked_mul(5)
+            .and_then(|v| v.checked_mul(n8r))
+            .ok_or_else(overflow)?;
         //the sigmas are in the same section - so we split it here in separate chunks
-        let sigma_section_size = domain_size * header.n8r + domain_size * 4 * header.n8r;
+        let sigma_section_size = poly_len;
 
-        let add_section = binfile.take_section(3);
-        let a_section = binfile.take_section(4);
-        let b_section = binfile.take_section(5);
-        let c_section = binfile.take_section(6);
-        let qm_section = binfile.take_section(7);
-        let ql_section = binfile.take_section(8);
-        let qr_section = binfile.take_section(9);
-        let q0_section = binfile.take_section(10);
-        let qc_section = binfile.take_section(11);
-        let sigma_sections = binfile.take_section_raw(12);
-        let l_section = binfile.take_section(13);
-        let t_section = binfile.take_section(14);
+        let add_section = binfile.take_section(3)?;
+        let a_section = binfile.take_section(4)?;
+        let b_section = binfile.take_section(5)?;
+        let c_section = binfile.take_section(6)?;
+        let qm_section = binfile.take_section(7)?;
+        let ql_section = binfile.take_section(8)?;
+        let qr_section = binfile.take_section(9)?;
+        let q0_section = binfile.take_section(10)?;
+        let qc_section = binfile.take_section(11)?;
+        let sigma_sections = binfile.take_section_raw(12)?;
+        let l_section = binfile.take_section(13)?;
+        let t_section = binfile.take_section(14)?;
+
+        // validate the counts from the header against the section sizes before allocating
+        check_section_len(
+            add_section.get_ref().len(),
+            n_additions,
+            8 + 2 * n8r,
+            "additions",
+        )?;
+        for (section, name) in [(&a_section, "a"), (&b_section, "b"), (&c_section, "c")] {
+            check_section_len(section.get_ref().len(), n_constraints, 4, name)?;
+        }
+        for (section, name) in [
+            (&qm_section, "qm"),
+            (&ql_section, "ql"),
+            (&qr_section, "qr"),
+            (&q0_section, "qo"),
+            (&qc_section, "qc"),
+        ] {
+            check_section_len(section.get_ref().len(), 1, poly_len, name)?;
+        }
+        check_section_len(sigma_sections.len(), 3, sigma_section_size, "sigma")?;
+        check_section_len(l_section.get_ref().len(), n_public, poly_len, "lagrange")?;
+        let n_taus = domain_size.checked_add(6).ok_or_else(overflow)?;
+        check_section_len(
+            t_section.get_ref().len(),
+            n_taus,
+            P::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED,
+            "taus",
+        )?;
         let sigma1_section = Cursor::new(&sigma_sections[..sigma_section_size]);
         let sigma2_section =
             Cursor::new(&sigma_sections[sigma_section_size..sigma_section_size * 2]);
@@ -394,7 +430,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> PlonkHeader<P> {
         let n_constraints = u32::deserialize_uncompressed(&mut reader)?;
         tracing::debug!("n_vars: {n_vars}; n_public: {n_public}, domain_size: {domain_size}");
         let verifying_key = VerifyingKey::new(&mut reader)?;
-        if domain_size & (domain_size - 1) == 0 && domain_size > 0 {
+        if domain_size.is_power_of_two() {
             tracing::debug!("read header done!");
             Ok(Self {
                 n8r,
@@ -411,5 +447,87 @@ impl<P: Pairing + CircomArkworksPairingBridge> PlonkHeader<P> {
                 "Invalid domain size {domain_size}. Must be power of 2"
             )))
         }
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "bn254")]
+mod malformed_bn254_tests {
+    use ark_bn254::Bn254;
+    use ark_ff::{BigInteger, PrimeField};
+
+    use super::*;
+
+    const N_SECTIONS: u32 = 14;
+
+    /// A zkey with a valid header (all curve points at infinity) and the given counts. All
+    /// sections except the header and the sigma section are empty.
+    fn zkey_bytes(
+        domain_size: u32,
+        n_additions: u32,
+        n_constraints: u32,
+        n_public: u32,
+        sigma_len: usize,
+    ) -> Vec<u8> {
+        let mut header = Vec::new();
+        header.extend_from_slice(&32u32.to_le_bytes());
+        header.extend_from_slice(&ark_bn254::Fq::MODULUS.to_bytes_le());
+        header.extend_from_slice(&32u32.to_le_bytes());
+        header.extend_from_slice(&ark_bn254::Fr::MODULUS.to_bytes_le());
+        for v in [0, n_public, domain_size, n_additions, n_constraints] {
+            header.extend_from_slice(&u32::to_le_bytes(v));
+        }
+        // k1, k2, 8 G1 points, 1 G2 point
+        header.extend_from_slice(&[0; 2 * 32 + 8 * 64 + 128]);
+
+        let mut bytes = b"zkey".to_vec();
+        bytes.extend_from_slice(&1u32.to_le_bytes());
+        bytes.extend_from_slice(&N_SECTIONS.to_le_bytes());
+        for id in 1..=N_SECTIONS {
+            let data = match id {
+                2 => header.clone(),
+                12 => vec![0; sigma_len],
+                _ => vec![],
+            };
+            bytes.extend_from_slice(&id.to_le_bytes());
+            bytes.extend_from_slice(&u64::try_from(data.len()).unwrap().to_le_bytes());
+            bytes.extend_from_slice(&data);
+        }
+        bytes
+    }
+
+    fn parse(bytes: Vec<u8>) -> ZkeyParserResult<Zkey<Bn254>> {
+        Zkey::<Bn254>::from_reader(bytes.as_slice(), CheckElement::No)
+    }
+
+    // 3 sigma polynomials with domain size 1: coefficients + 4x evaluations, 32 bytes each
+    const SIGMA_LEN_DOMAIN_1: usize = 3 * 5 * 32;
+
+    #[test]
+    fn rejects_huge_domain_size() {
+        parse(zkey_bytes(1 << 31, 0, 0, 0, 0))
+            .err()
+            .expect("should fail");
+    }
+
+    #[test]
+    fn rejects_huge_n_additions() {
+        parse(zkey_bytes(1, u32::MAX, 0, 0, SIGMA_LEN_DOMAIN_1))
+            .err()
+            .expect("should fail");
+    }
+
+    #[test]
+    fn rejects_huge_n_constraints() {
+        parse(zkey_bytes(1, 0, u32::MAX, 0, SIGMA_LEN_DOMAIN_1))
+            .err()
+            .expect("should fail");
+    }
+
+    #[test]
+    fn rejects_huge_n_public() {
+        parse(zkey_bytes(1, 0, 0, u32::MAX, SIGMA_LEN_DOMAIN_1))
+            .err()
+            .expect("should fail");
     }
 }

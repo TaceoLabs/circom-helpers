@@ -31,10 +31,10 @@ use ark_ff::PrimeField;
 use ark_relations::utils::matrix::Matrix;
 use ark_serialize::CanonicalDeserialize;
 
-use std::io::Read;
+use std::io::{Cursor, Read};
 
 use crate::{
-    binfile::{BinFile, ZkeyParserError, ZkeyParserResult},
+    binfile::{BinFile, ZkeyParserError, ZkeyParserResult, check_section_len},
     traits::CircomArkworksPairingBridge,
 };
 
@@ -117,20 +117,36 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
         let mut binfile = BinFile::<P>::new(&mut reader)?;
 
         tracing::debug!("start transforming bin file into zkey...");
-        let header = HeaderGroth::<P>::read(&mut binfile.take_section(2), check)?;
+        let header = HeaderGroth::<P>::read(&mut binfile.take_section(2)?, check)?;
         let n_vars = header.n_vars;
         let n_public = header.n_public;
         let domain_size = usize::try_from(header.domain_size).expect("fits into usize");
 
         // parse proving key
 
-        let ic_section = binfile.take_section(3);
-        let matrices_section = binfile.take_section(4);
-        let a_section = binfile.take_section(5);
-        let b_g1_section = binfile.take_section(6);
-        let b_g2_section = binfile.take_section(7);
-        let l_section = binfile.take_section(8);
-        let h_section = binfile.take_section(9);
+        let ic_section = binfile.take_section(3)?;
+        let matrices_section = binfile.take_section(4)?;
+        let a_section = binfile.take_section(5)?;
+        let b_g1_section = binfile.take_section(6)?;
+        let b_g2_section = binfile.take_section(7)?;
+        let l_section = binfile.take_section(8)?;
+        let h_section = binfile.take_section(9)?;
+
+        // validate the counts from the header against the section sizes before allocating
+        let n_ic = n_public
+            .checked_add(1)
+            .ok_or_else(|| ZkeyParserError::CorruptedBinFile("n_public out of range".to_owned()))?;
+        let n_l = n_vars.checked_sub(n_ic).ok_or_else(|| {
+            ZkeyParserError::CorruptedBinFile("n_public must be smaller than n_vars".to_owned())
+        })?;
+        let g1_size = P::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED;
+        let g2_size = P::G2_SERIALIZED_BYTE_SIZE_UNCOMPRESSED;
+        check_section_len(ic_section.get_ref().len(), n_ic, g1_size, "ic")?;
+        check_section_len(a_section.get_ref().len(), n_vars, g1_size, "a")?;
+        check_section_len(b_g1_section.get_ref().len(), n_vars, g1_size, "b_g1")?;
+        check_section_len(b_g2_section.get_ref().len(), n_vars, g2_size, "b_g2")?;
+        check_section_len(l_section.get_ref().len(), n_l, g1_size, "l")?;
+        check_section_len(h_section.get_ref().len(), domain_size, g1_size, "h")?;
 
         let mut ic = None;
         let mut a_query = None;
@@ -146,7 +162,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
             s.spawn(|| a_query = Some(Self::a_query(n_vars, a_section, check)));
             s.spawn(|| b_g1_query = Some(Self::b_g1_query(n_vars, b_g1_section, check)));
             s.spawn(|| b_g2_query = Some(Self::b_g2_query(n_vars, b_g2_section, check)));
-            s.spawn(|| l_query = Some(Self::l_query(n_vars - n_public - 1, l_section, check)));
+            s.spawn(|| l_query = Some(Self::l_query(n_l, l_section, check)));
             s.spawn(|| h_query = Some(Self::h_query(domain_size, h_section, check)));
             s.spawn(|| {
                 matrices = Some(Self::constraint_matrices(
@@ -229,13 +245,20 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
         Ok(P::g1_vec_from_reader(reader, n_vars, check)?)
     }
 
-    fn constraint_matrices<R: Read>(
+    fn constraint_matrices(
         domain_size: usize,
         n_public: usize,
-        mut matrices_section: R,
+        mut matrices_section: Cursor<Vec<u8>>,
     ) -> ZkeyParserResult<ConstraintMatrixAB<P::ScalarField>> {
         // this function (an all following uses) assumes that values are encoded in little-endian
         let num_coeffs = u32::deserialize_uncompressed(&mut matrices_section)?;
+        // each entry is matrix, constraint, signal (u32) and the value
+        check_section_len(
+            matrices_section.get_ref().len().saturating_sub(4),
+            u32_to_usize!(num_coeffs),
+            12 + P::SCALAR_FIELD_BYTE_SIZE,
+            "matrices",
+        )?;
 
         // instantiate AB
         let a = vec![vec![]; domain_size];
@@ -249,10 +272,22 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
 
             let value = P::fr_from_reader_for_groth16_zkey(&mut matrices_section)?;
             max_constraint_index = std::cmp::max(max_constraint_index, constraint);
-            matrices[matrix as usize][constraint as usize].push((value, signal as usize));
+            matrices
+                .get_mut(u32_to_usize!(matrix))
+                .and_then(|m| m.get_mut(u32_to_usize!(constraint)))
+                .ok_or_else(|| {
+                    ZkeyParserError::CorruptedBinFile(format!(
+                        "matrix entry ({matrix}, {constraint}) out of range"
+                    ))
+                })?
+                .push((value, u32_to_usize!(signal)));
         }
 
-        let num_constraints = max_constraint_index as usize - n_public;
+        let num_constraints = u32_to_usize!(max_constraint_index)
+            .checked_sub(n_public)
+            .ok_or_else(|| {
+                ZkeyParserError::CorruptedBinFile("constraint index below n_public".to_owned())
+            })?;
         // Remove the public input constraints, Arkworks adds them later
         matrices.iter_mut().for_each(|m| {
             m.truncate(num_constraints);
@@ -296,7 +331,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> HeaderGroth<P> {
         let n_public = u32_to_usize!(u32::deserialize_uncompressed(&mut reader)?);
         let domain_size = u32::deserialize_uncompressed(&mut reader)?;
         tracing::debug!("n_vars: {n_vars}; n_public: {n_public}, domain_size: {domain_size}");
-        if domain_size & (domain_size - 1) == 0 && domain_size > 0 {
+        if domain_size.is_power_of_two() {
             let alpha_g1 = P::g1_from_reader(&mut reader, check)?;
             let beta_g1 = P::g1_from_reader(&mut reader, check)?;
             let beta_g2 = P::g2_from_reader(&mut reader, check)?;
@@ -715,6 +750,107 @@ mod bn254_tests {
             )
             .unwrap();
             assert_eq!(expected, de);
+        }
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "bn254")]
+mod malformed_bn254_tests {
+    use ark_bn254::Bn254;
+
+    use super::*;
+    use crate::tests::{groth16_bn254_kats, patch_u32, section_offset};
+
+    // header layout for bn254: n8q, q, n8r, r, n_vars, n_public, domain_size
+    const N_VARS: usize = 4 + 32 + 4 + 32;
+    const N_PUBLIC: usize = N_VARS + 4;
+    const DOMAIN_SIZE: usize = N_VARS + 8;
+
+    fn parse_patched(patch: impl FnOnce(&mut [u8])) -> ZkeyParserResult<Zkey<Bn254>> {
+        let mut bytes = std::fs::read(groth16_bn254_kats().join("circuit.zkey")).unwrap();
+        patch(&mut bytes);
+        Zkey::<Bn254>::from_reader(bytes.as_slice(), CheckElement::No)
+    }
+
+    #[test]
+    fn rejects_missing_sections() {
+        let mut bytes = b"zkey".to_vec();
+        bytes.extend_from_slice(&[1, 0, 0, 0, 0, 0, 0, 0]);
+        Zkey::<Bn254>::from_reader(bytes.as_slice(), CheckElement::No)
+            .err()
+            .expect("should fail");
+    }
+
+    #[test]
+    fn rejects_huge_n_vars() {
+        parse_patched(|b| {
+            let h = section_offset(b, 2);
+            patch_u32(b, h + N_VARS, u32::MAX);
+        })
+        .err()
+        .expect("should fail");
+    }
+
+    #[test]
+    fn rejects_huge_domain_size() {
+        parse_patched(|b| {
+            let h = section_offset(b, 2);
+            patch_u32(b, h + DOMAIN_SIZE, 1 << 31);
+        })
+        .err()
+        .expect("should fail");
+    }
+
+    #[test]
+    fn rejects_invalid_domain_size() {
+        for domain_size in [0, 3] {
+            parse_patched(|b| {
+                let h = section_offset(b, 2);
+                patch_u32(b, h + DOMAIN_SIZE, domain_size);
+            })
+            .err()
+            .expect("should fail");
+        }
+    }
+
+    #[test]
+    fn rejects_overflowing_vec_len() {
+        let buf = [0u8; 0];
+        <Bn254 as CircomArkworksPairingBridge>::g1_vec_from_reader(
+            &buf[..],
+            usize::MAX,
+            CheckElement::No,
+        )
+        .expect_err("should fail");
+        <Bn254 as CircomArkworksPairingBridge>::g2_vec_from_reader(
+            &buf[..],
+            usize::MAX,
+            CheckElement::No,
+        )
+        .expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_n_public_larger_than_n_vars() {
+        parse_patched(|b| {
+            let h = section_offset(b, 2);
+            patch_u32(b, h + N_PUBLIC, 100);
+        })
+        .err()
+        .expect("should fail");
+    }
+
+    #[test]
+    fn rejects_out_of_range_matrix_entries() {
+        // section 4 starts with num_coeffs, then (matrix, constraint, signal, value) entries
+        for (field, value) in [(4, 7), (8, u32::MAX)] {
+            parse_patched(|b| {
+                let s = section_offset(b, 4);
+                patch_u32(b, s + field, value);
+            })
+            .err()
+            .expect("should fail");
         }
     }
 }

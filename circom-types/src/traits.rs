@@ -177,12 +177,17 @@ pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     /// Deserializes element of G2 from reader where the element is already in montgomery form (no montgomery reduction performed)
     fn g2_from_reader(reader: impl Read, check: CheckElement) -> SerResult<Self::G2Affine>;
     /// Deserializes vec of G1 from reader where the elements are already in montgomery form (no montgomery reduction performed)
+    ///
+    /// Allocates `num` elements up front, so `num` must be validated against the size of the input by the caller.
     fn g1_vec_from_reader(
         mut reader: impl Read,
         num: usize,
         check: CheckElement,
     ) -> SerResult<Vec<Self::G1Affine>> {
-        let mut buf = vec![0u8; Self::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED * num];
+        let len = Self::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED
+            .checked_mul(num)
+            .ok_or(SerializationError::InvalidData)?;
+        let mut buf = vec![0u8; len];
         reader.read_exact(&mut buf)?;
         #[cfg(feature = "parallel")]
         use rayon::prelude::*;
@@ -207,7 +212,10 @@ pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
         num: usize,
         check: CheckElement,
     ) -> SerResult<Vec<Self::G2Affine>> {
-        let mut buf = vec![0u8; Self::G2_SERIALIZED_BYTE_SIZE_UNCOMPRESSED * num];
+        let len = Self::G2_SERIALIZED_BYTE_SIZE_UNCOMPRESSED
+            .checked_mul(num)
+            .ok_or(SerializationError::InvalidData)?;
+        let mut buf = vec![0u8; len];
         reader.read_exact(&mut buf)?;
 
         #[cfg(feature = "parallel")]
