@@ -21,11 +21,7 @@ ark-bn254 = { workspace = true }
 ark-ff = { workspace = true }
 ark-groth16 = { workspace = true }
 ark-serialize = { workspace = true, optional = true }
-circom-types = { package = "taceo-circom-types", path = "../circom-types", version = "0.3.4", features = [
-  "bn254",
-  "groth16",
-  "zkey"
-], default-features = false }
+circom-types = { package = "taceo-circom-types", path = "../circom-types", version = "0.3.4", default-features = false, features = ["bn254", "groth16", "zkey"] }
 circom-witness-rs = { workspace = true, optional = true }
 eyre = { workspace = true }
 groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.3", default-features = false }
@@ -39,15 +35,11 @@ thiserror = { workspace = true }
 
 [features]
 default = ["circom", "parallel"]
-circom = [
-  "dep:ark-serialize",
-  "dep:circom-witness-rs",
-  "dep:hex",
-  "dep:postcard",
-  "dep:ruint",
-  "dep:sha2"
-]
+circom = ["dep:ark-serialize", "dep:circom-witness-rs", "dep:hex", "dep:postcard", "dep:ruint", "dep:sha2"]
 full = ["circom"]
 parallel = ["groth16/parallel", "circom-types/parallel"]
 reqwest = ["dep:reqwest"]
 reqwest-blocking = ["reqwest/blocking"]
+
+[lints]
+workspace = true
