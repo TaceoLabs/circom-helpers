@@ -1235,8 +1235,15 @@ fn parse_field_str_inner<const UNSIGNED: bool, F: PrimeField>(
     Ok(F::from_bigint(number).expect("Is some due to checks above"))
 }
 
-/// Upper bound on the decimal digits of any value `<= F::MODULUS`.
-/// Uses 0.30103 >= log10(2) so the bound is never too small.
+/// Upper bound on the number of decimal digits of any field element.
+///
+/// A number below `2^b` has at most `floor(b * log10(2)) + 1` digits. This computes that in
+/// integer arithmetic with `30_103 / 100_000 = 0.30103`, which is slightly larger than
+/// `log10(2) = 0.30102999...`. Rounding up keeps the bound from ever being too small, which
+/// would reject valid values. At worst it allows one digit more than needed.
+/// For BN254 `Fr` (254 bits) it gives 77, the exact digit count of the modulus.
+///
+/// Used to reject overlong strings before `BigInt::from_str`, which is O(n^2) in the digit count.
 #[inline]
 fn max_decimal_digits<F: PrimeField>() -> usize {
     F::MODULUS_BIT_SIZE as usize * 30_103 / 100_000 + 1
