@@ -249,11 +249,11 @@ impl<'de, const CHECK: bool> de::Visitor<'de> for BabyJubJubAffineSeqVisitor<CHE
     where
         A: de::SeqAccess<'de>,
     {
-        let mut values = vec![];
-        while let Some(point) = seq.next_element::<Vec<String>>()? {
-            //check if there are no more elements
-            if point.len() != 2 {
-                return Err(de::Error::invalid_length(point.len(), &self));
+        // never trust seq.size_hint(), it comes from the input
+        let mut values = Vec::with_capacity(self.size.unwrap_or(0));
+        while let Some(point) = seq.next_element::<[String; 2]>()? {
+            if self.size.is_some_and(|size| values.len() == size) {
+                return Err(de::Error::invalid_length(values.len() + 1, &self));
             }
             values.push(
                 affine_from_strings::<CHECK>(&point[0], &point[1]).map_err(|_| {
