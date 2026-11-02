@@ -145,6 +145,54 @@ pub(crate) mod tests {
     }
 }
 
+/// Makes oversized allocations fail instead of thrashing the machine, so tests that feed
+/// header-driven lengths to the parsers abort immediately if a parser trusts them.
+/// Test-only.
+#[cfg(test)]
+mod alloc_guard {
+    use std::alloc::{GlobalAlloc, Layout, System};
+
+    const LIMIT: usize = 1 << 30;
+
+    struct Guard;
+
+    // SAFETY: every method forwards to `System` with the unchanged arguments, and only
+    // returns null (allocation failure) for requests above `LIMIT`.
+    unsafe impl GlobalAlloc for Guard {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            if layout.size() > LIMIT {
+                return std::ptr::null_mut();
+            }
+            // SAFETY: same layout as the caller's, which upholds `GlobalAlloc::alloc`'s contract.
+            unsafe { System.alloc(layout) }
+        }
+
+        unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+            if layout.size() > LIMIT {
+                return std::ptr::null_mut();
+            }
+            // SAFETY: same layout as the caller's.
+            unsafe { System.alloc_zeroed(layout) }
+        }
+
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+            if new_size > LIMIT {
+                return std::ptr::null_mut();
+            }
+            // SAFETY: `ptr` and `layout` come from a previous allocation by this allocator.
+            unsafe { System.realloc(ptr, layout, new_size) }
+        }
+
+        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+            // SAFETY: `ptr` and `layout` come from a previous allocation by this allocator.
+            unsafe { System.dealloc(ptr, layout) }
+        }
+    }
+
+    #[global_allocator]
+    static GUARD: Guard = Guard;
+}
+
 #[cfg(test)]
 pub(crate) mod test_utils {
     #![allow(unused)]
