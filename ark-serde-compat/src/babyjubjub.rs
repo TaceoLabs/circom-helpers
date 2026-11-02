@@ -24,6 +24,10 @@ use crate::SerdeCompatError;
 ///
 /// The EdwardsAffine point is serialized as `[x, y]` where each coordinate
 /// is a decimal string representing an Fq element.
+///
+/// # Errors
+///
+/// Returns an error if the serializer fails.
 pub fn serialize_affine<S: Serializer>(
     p: &ark_babyjubjub::EdwardsAffine,
     ser: S,
@@ -45,6 +49,10 @@ pub fn serialize_affine<S: Serializer>(
 /// Serialize a sequence of BabyJubJub affine points as an array of coordinate pair arrays.
 ///
 /// Each EdwardsAffine point is serialized as `[x, y]` where each coordinate is a decimal string.
+///
+/// # Errors
+///
+/// Returns an error if the serializer fails.
 pub fn serialize_affine_seq<S: Serializer>(
     ps: &[ark_babyjubjub::EdwardsAffine],
     ser: S,
@@ -68,6 +76,10 @@ pub fn serialize_affine_seq<S: Serializer>(
 ///
 /// The EdwardsAffine point is deserialized from `[x, y]` format. Validates that the
 /// point is on the curve and in the correct subgroup.
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_affine<'de, D>(
     deserializer: D,
 ) -> Result<ark_babyjubjub::EdwardsAffine, D::Error>
@@ -83,6 +95,10 @@ where
 /// The EdwardsAffine point is deserialized from `[x, y]` format. **Does not** validate that the
 /// point is on the curve or in the correct subgroup, making it significantly faster but potentially
 /// unsafe. Use only with trusted input.
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_affine_unchecked<'de, D>(
     deserializer: D,
 ) -> Result<ark_babyjubjub::EdwardsAffine, D::Error>
@@ -97,6 +113,10 @@ where
 ///
 /// Each EdwardsAffine point is deserialized from `[x, y]` format. Validates that all points
 /// are on the curve and in the correct subgroup.
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_affine_seq<'de, D>(
     deserializer: D,
 ) -> Result<Vec<ark_babyjubjub::EdwardsAffine>, D::Error>
@@ -112,6 +132,10 @@ where
 /// Each EdwardsAffine point is deserialized from `[x, y]` format. **Does not** validate that the
 /// points are on the curve or in the correct subgroup, making it significantly faster but potentially
 /// unsafe. Use only with trusted input.
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_affine_seq_unchecked<'de, D>(
     deserializer: D,
 ) -> Result<Vec<ark_babyjubjub::EdwardsAffine>, D::Error>
@@ -127,6 +151,10 @@ where
 /// Each EdwardsAffine point is deserialized from `[x, y]` format. Validates that all points
 /// are on the curve and in the correct subgroup. Returns an error if not exactly `LENGTH` elements
 /// can be deserialized.
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_affine_array<'de, const LENGTH: usize, D>(
     deserializer: D,
 ) -> Result<[ark_babyjubjub::EdwardsAffine; LENGTH], D::Error>
@@ -134,7 +162,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineSeqVisitor::<true> { size: Some(LENGTH) };
-    crate::deser_array(deserializer, visitor)
+    crate::deser_array(deserializer, &visitor)
 }
 
 /// Deserialize am array of BabyJubJub affine points from an array of coordinate pair arrays.
@@ -143,6 +171,10 @@ where
 /// points are on the curve or in the correct subgroup, making it significantly faster but potentially
 /// unsafe. Use only with trusted input. Returns an error if not exactly `LENGTH` elements
 /// can be deserialized.
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_affine_array_unchecked<'de, const LENGTH: usize, D>(
     deserializer: D,
 ) -> Result<[ark_babyjubjub::EdwardsAffine; LENGTH], D::Error>
@@ -150,7 +182,7 @@ where
     D: de::Deserializer<'de>,
 {
     let visitor = BabyJubJubAffineSeqVisitor::<false> { size: Some(LENGTH) };
-    crate::deser_array(deserializer, visitor)
+    crate::deser_array(deserializer, &visitor)
 }
 
 fn affine_from_strings<const CHECK: bool>(
@@ -272,6 +304,10 @@ pub mod affine {
     use serde::{Serializer, de};
 
     /// Serialize a BabyJubJub affine point.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     pub fn serialize<S: Serializer>(
         p: &ark_babyjubjub::EdwardsAffine,
         ser: S,
@@ -280,6 +316,10 @@ pub mod affine {
     }
 
     /// Deserialize a BabyJubJub affine point with full validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::EdwardsAffine, D::Error>
     where
         D: de::Deserializer<'de>,
@@ -296,6 +336,10 @@ pub mod affine_unchecked {
     use serde::{Serializer, de};
 
     /// Serialize a BabyJubJub affine point.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     pub fn serialize<S: Serializer>(
         p: &ark_babyjubjub::EdwardsAffine,
         ser: S,
@@ -304,6 +348,10 @@ pub mod affine_unchecked {
     }
 
     /// Deserialize a BabyJubJub affine point without validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<ark_babyjubjub::EdwardsAffine, D::Error>
     where
         D: de::Deserializer<'de>,
@@ -319,6 +367,10 @@ pub mod affine_seq {
     use serde::{Serializer, de};
 
     /// Serialize a sequence of BabyJubJub affine points.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     pub fn serialize<S: Serializer>(
         ps: &[ark_babyjubjub::EdwardsAffine],
         ser: S,
@@ -327,6 +379,10 @@ pub mod affine_seq {
     }
 
     /// Deserialize a sequence of BabyJubJub affine points with full validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     pub fn deserialize<'de, D>(
         deserializer: D,
     ) -> Result<Vec<ark_babyjubjub::EdwardsAffine>, D::Error>
@@ -345,6 +401,10 @@ pub mod affine_seq_unchecked {
     use serde::{Serializer, de};
 
     /// Serialize a sequence of BabyJubJub affine points.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     pub fn serialize<S: Serializer>(
         ps: &[ark_babyjubjub::EdwardsAffine],
         ser: S,
@@ -353,6 +413,10 @@ pub mod affine_seq_unchecked {
     }
 
     /// Deserialize a sequence of BabyJubJub affine points without validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     pub fn deserialize<'de, D>(
         deserializer: D,
     ) -> Result<Vec<ark_babyjubjub::EdwardsAffine>, D::Error>

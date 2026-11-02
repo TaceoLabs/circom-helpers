@@ -1,3 +1,7 @@
+#![allow(
+    clippy::unwrap_used,
+    reason = "benchmarks and tests may panic on failure"
+)]
 //! Tests the DIF/DIT-based witness maps against reference implementations built on
 //! [`ark_poly::GeneralEvaluationDomain`] (the implementation this crate used before switching to
 //! `taceo-ark-algebra`), and the full prover against `ark-groth16`.
@@ -44,7 +48,8 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
         })?;
 
         for _ in 0..(self.num_variables - 3) {
-            let _ = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
+            let _variable =
+                cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
         }
 
         for _ in 0..self.num_constraints - 1 {
@@ -80,7 +85,10 @@ fn setup<P: Pairing>() -> TestSetup<P> {
     let cs = ConstraintSystem::new_ref();
     cs.set_optimization_goal(OptimizationGoal::Constraints);
     circuit.generate_constraints(cs.clone()).unwrap();
-    assert!(cs.is_satisfied().unwrap());
+    assert!(
+        cs.is_satisfied().unwrap(),
+        "constraint system must be satisfied"
+    );
     cs.finalize();
     let cs_matrices = cs.to_matrices().unwrap();
     let ark_matrices = cs_matrices
@@ -268,7 +276,7 @@ where
     let actual =
         Groth16::<P>::prove::<LibSnarkReduction>(&s.pk, r, sv, &s.matrices, &s.full_assignment)
             .unwrap();
-    assert_eq!(actual, expected);
+    assert_eq!(actual, expected, "witness map must match the reference");
 
     Groth16::<P>::verify(&s.vk, &actual, &s.full_assignment[1..s.num_inputs]).unwrap();
 }

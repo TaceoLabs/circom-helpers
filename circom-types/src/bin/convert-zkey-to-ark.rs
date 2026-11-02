@@ -1,3 +1,5 @@
+//! Converts a circom groth16 `.zkey` file into the arkworks serialization format.
+
 use std::{
     fs::File,
     io::{BufReader, BufWriter},
@@ -20,7 +22,7 @@ fn install_tracing() {
     let fmt_layer = fmt::layer().with_target(false).with_line_number(false);
     let filter_layer = EnvFilter::try_from_default_env()
         .or_else(|_| EnvFilter::try_new("info"))
-        .unwrap();
+        .expect("`info` is a valid filter");
 
     tracing_subscriber::registry()
         .with(filter_layer)

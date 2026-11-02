@@ -58,23 +58,23 @@ pub struct Zkey<P: Pairing> {
     pub beta_g1: P::G1Affine,
     /// delta
     pub delta_g1: P::G1Affine,
-    /// a_query
+    /// `a_query`
     pub a_query: Vec<P::G1Affine>,
-    /// b_query in G1
+    /// `b_query` in G1
     pub b_g1_query: Vec<P::G1Affine>,
-    /// b_query in G2
+    /// `b_query` in G2
     pub b_g2_query: Vec<P::G2Affine>,
-    /// h_query
+    /// `h_query`
     pub h_query: Vec<P::G1Affine>,
-    /// l_query
+    /// `l_query`
     pub l_query: Vec<P::G1Affine>,
-    /// alpha_g1
+    /// `alpha_g1`
     pub alpha_g1: P::G1Affine,
-    /// beta_g2
+    /// `beta_g2`
     pub beta_g2: P::G2Affine,
-    /// delta_g2
+    /// `delta_g2`
     pub delta_g2: P::G2Affine,
-    /// gamma_g2
+    /// `gamma_g2`
     pub gamma_g2: P::G2Affine,
     /// Used to bind public inputs to the proof
     pub ic: Vec<P::G1Affine>,
@@ -113,6 +113,14 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
     /// only with care.
     ///
     /// See [`CheckElement`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a `u32` does not fit into `usize`, which can only happen on targets narrower than 32 bits.
     pub fn from_reader<R: Read>(mut reader: R, check: CheckElement) -> ZkeyParserResult<Self> {
         let mut binfile = BinFile::<P>::new(&mut reader)?;
 
@@ -169,10 +177,10 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
                     domain_size,
                     n_public,
                     matrices_section,
-                ))
+                ));
             });
         });
-        let (num_constraints, a_matrix, b_matrix) = matrices.unwrap()?;
+        let (num_constraints, a_matrix, b_matrix) = matrices.expect("slot is set by the scope")?;
 
         tracing::debug!("groth16 zkey parsing done!");
         Ok(Zkey {
@@ -181,19 +189,19 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
             num_constraints,
             beta_g1: header.beta_g1,
             delta_g1: header.delta_g1,
-            // unwrap is fine, because we are guaranteed to have a Some value
-            a_query: a_query.unwrap()?,
-            b_g1_query: b_g1_query.unwrap()?,
-            b_g2_query: b_g2_query.unwrap()?,
-            h_query: h_query.unwrap()?,
-            l_query: l_query.unwrap()?,
+            // every slot is set by the scope above, even on the error path
+            a_query: a_query.expect("slot is set by the scope")?,
+            b_g1_query: b_g1_query.expect("slot is set by the scope")?,
+            b_g2_query: b_g2_query.expect("slot is set by the scope")?,
+            h_query: h_query.expect("slot is set by the scope")?,
+            l_query: l_query.expect("slot is set by the scope")?,
             alpha_g1: header.alpha_g1,
             beta_g2: header.beta_g2,
             delta_g2: header.delta_g2,
             gamma_g2: header.gamma_g2,
             a_matrix,
             b_matrix,
-            ic: ic.unwrap()?,
+            ic: ic.expect("slot is set by the scope")?,
         })
     }
 
@@ -289,9 +297,9 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
                 ZkeyParserError::CorruptedBinFile("constraint index below n_public".to_owned())
             })?;
         // Remove the public input constraints, Arkworks adds them later
-        matrices.iter_mut().for_each(|m| {
+        for m in &mut matrices {
             m.truncate(num_constraints);
-        });
+        }
 
         let [a, b] = matrices;
         Ok((num_constraints, a, b))
@@ -299,28 +307,34 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
 }
 
 impl<P: Pairing + CircomArkworksPairingBridge> HeaderGroth<P> {
-    fn read<R: Read>(mut reader: &mut R, check: CheckElement) -> ZkeyParserResult<Self> {
+    fn read<R: Read>(mut reader: R, check: CheckElement) -> ZkeyParserResult<Self> {
         tracing::debug!("reading groth16 header..");
-        let n8q: u32 = u32::deserialize_uncompressed(&mut reader)?;
+        let base_bytes: u32 = u32::deserialize_uncompressed(&mut reader)?;
         //modulus of BaseField
         let q = <P::BaseField as PrimeField>::BigInt::deserialize_uncompressed(&mut reader)?;
-        tracing::debug!("base field byte size: {n8q}");
-        let expected_n8q = P::BaseField::MODULUS_BIT_SIZE.div_ceil(8);
-        if n8q != expected_n8q {
-            return Err(ZkeyParserError::UnexpectedByteSize(expected_n8q, n8q));
+        tracing::debug!("base field byte size: {base_bytes}");
+        let expected_base_bytes = P::BaseField::MODULUS_BIT_SIZE.div_ceil(8);
+        if base_bytes != expected_base_bytes {
+            return Err(ZkeyParserError::UnexpectedByteSize(
+                expected_base_bytes,
+                base_bytes,
+            ));
         }
         let modulus = <P::BaseField as PrimeField>::MODULUS;
         if q != modulus {
             return Err(ZkeyParserError::InvalidPrimeInHeader);
         }
         // this function assumes that the values are encoded in little-endian
-        let n8r: u32 = u32::deserialize_uncompressed(&mut reader)?;
-        tracing::debug!("scalar field byte size: {n8r}");
+        let scalar_bytes: u32 = u32::deserialize_uncompressed(&mut reader)?;
+        tracing::debug!("scalar field byte size: {scalar_bytes}");
         //modulus of ScalarField
         let r = <P::ScalarField as PrimeField>::BigInt::deserialize_uncompressed(&mut reader)?;
-        let expected_n8r = P::ScalarField::MODULUS_BIT_SIZE.div_ceil(8);
-        if n8r != expected_n8r {
-            return Err(ZkeyParserError::UnexpectedByteSize(expected_n8r, n8r));
+        let expected_scalar_bytes = P::ScalarField::MODULUS_BIT_SIZE.div_ceil(8);
+        if scalar_bytes != expected_scalar_bytes {
+            return Err(ZkeyParserError::UnexpectedByteSize(
+                expected_scalar_bytes,
+                scalar_bytes,
+            ));
         }
         let modulus = <P::ScalarField as PrimeField>::MODULUS;
         if r != modulus {
@@ -419,6 +433,11 @@ mod bls12_381_tests {
                 ),
             ];
 
+            assert_eq!(beta_g1, pk.beta_g1);
+            assert_eq!(delta_g1, pk.delta_g1);
+            assert_eq!(a_query, *pk.a_query);
+            assert_eq!(b_g1_query, *pk.b_g1_query);
+            assert_eq!(b_g2_query, *pk.b_g2_query);
             let h_query = vec![
                 test_utils::to_g1_bls12_381!(
                     "2293029533522893095460116818499709494426283913180551777630398477755354415182042699034545957058675161919586139564369",
@@ -447,11 +466,6 @@ mod bls12_381_tests {
                     "355009792229307920564863475599607679977168981064095632836608588866145933539209405913407870349684241161840508453558"
                 ),
             ];
-            assert_eq!(beta_g1, pk.beta_g1);
-            assert_eq!(delta_g1, pk.delta_g1);
-            assert_eq!(a_query, *pk.a_query);
-            assert_eq!(b_g1_query, *pk.b_g1_query);
-            assert_eq!(b_g2_query, *pk.b_g2_query);
             assert_eq!(h_query, pk.h_query);
             assert_eq!(l_query, pk.l_query);
             let alpha_g1 = test_utils::to_g1_bls12_381!(
@@ -486,6 +500,39 @@ mod bn254_tests {
 
     use ark_ff::{One, Zero};
     use std::str::FromStr;
+
+    fn assert_h_and_l_queries(pk: &Zkey<Bn254>) {
+        let h_query = vec![
+            test_utils::to_g1_bn254!(
+                "6700513793947040178272431538132695909814808341474700033179555096948265834163",
+                "3702458429860293860126161729473184417690978782825186962373408709751934349255"
+            ),
+            test_utils::to_g1_bn254!(
+                "3225757210775924198062688167188302863174919799399835717461711357401017733475",
+                "8791371305241810326819180276689616469985548291962809871367438397488155336149"
+            ),
+            test_utils::to_g1_bn254!(
+                "13493432095464357272608951933337268704371819533913523733687802071485012174481",
+                "5531822087425040465533301450497735021203494273046107158269966026275807395639"
+            ),
+            test_utils::to_g1_bn254!(
+                "15396782304271112846116855625124513047228463242415719456633010579521777763173",
+                "8258083175634258927272835103331851780426370931797814635880535822054891487444"
+            ),
+        ];
+        let l_query = vec![
+            test_utils::to_g1_bn254!(
+                "14293418265207147156122985951829773749976888191656636438805785399673848239092",
+                "291952141266205370506542536801856778702146583588765672667099667518861492814"
+            ),
+            test_utils::to_g1_bn254!(
+                "2058060186664785244243803292525142877328490944635412415694740369257034050464",
+                "20518040155278230805559359774469944262370840294076847138351681247484905656843"
+            ),
+        ];
+        assert_eq!(h_query, pk.h_query);
+        assert_eq!(l_query, pk.l_query);
+    }
 
     #[test]
     fn can_deser_bn254_mult2_key() {
@@ -536,41 +583,12 @@ mod bn254_tests {
                 ),
             ];
 
-            let h_query = vec![
-                test_utils::to_g1_bn254!(
-                    "6700513793947040178272431538132695909814808341474700033179555096948265834163",
-                    "3702458429860293860126161729473184417690978782825186962373408709751934349255"
-                ),
-                test_utils::to_g1_bn254!(
-                    "3225757210775924198062688167188302863174919799399835717461711357401017733475",
-                    "8791371305241810326819180276689616469985548291962809871367438397488155336149"
-                ),
-                test_utils::to_g1_bn254!(
-                    "13493432095464357272608951933337268704371819533913523733687802071485012174481",
-                    "5531822087425040465533301450497735021203494273046107158269966026275807395639"
-                ),
-                test_utils::to_g1_bn254!(
-                    "15396782304271112846116855625124513047228463242415719456633010579521777763173",
-                    "8258083175634258927272835103331851780426370931797814635880535822054891487444"
-                ),
-            ];
-            let l_query = vec![
-                test_utils::to_g1_bn254!(
-                    "14293418265207147156122985951829773749976888191656636438805785399673848239092",
-                    "291952141266205370506542536801856778702146583588765672667099667518861492814"
-                ),
-                test_utils::to_g1_bn254!(
-                    "2058060186664785244243803292525142877328490944635412415694740369257034050464",
-                    "20518040155278230805559359774469944262370840294076847138351681247484905656843"
-                ),
-            ];
             assert_eq!(beta_g1, pk.beta_g1);
             assert_eq!(delta_g1, pk.delta_g1);
             assert_eq!(a_query, *pk.a_query);
             assert_eq!(b_g1_query, *pk.b_g1_query);
             assert_eq!(b_g2_query, *pk.b_g2_query);
-            assert_eq!(h_query, pk.h_query);
-            assert_eq!(l_query, pk.l_query);
+            assert_h_and_l_queries(&pk);
 
             let alpha_g1 = test_utils::to_g1_bn254!(
                 "16899422092493380665487369855810985762968608626455123789954325961085508316984",
@@ -703,7 +721,7 @@ mod bn254_tests {
             let buf = vec![g1_buf(); n_vars]
                 .iter()
                 .flatten()
-                .cloned()
+                .copied()
                 .collect::<Vec<_>>();
             let expected = vec![g1_one(); n_vars];
 
@@ -739,7 +757,7 @@ mod bn254_tests {
             let buf = vec![g2_buf(); n_vars]
                 .iter()
                 .flatten()
-                .cloned()
+                .copied()
                 .collect::<Vec<_>>();
             let expected = vec![g2_one(); n_vars];
 

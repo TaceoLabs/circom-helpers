@@ -1,3 +1,7 @@
+#![allow(
+    clippy::unwrap_used,
+    reason = "benchmarks and tests may panic on failure"
+)]
 //! Benchmarks of this crate's MSM and FFT against their arkworks counterparts.
 
 use ark_bn254::{Fr, G1Affine, G1Projective};
@@ -25,7 +29,7 @@ fn msm_bench(c: &mut Criterion) {
         let scalars = (0..size).map(|_| Fr::rand(&mut rng)).collect::<Vec<_>>();
 
         group.bench_function(BenchmarkId::new("ark-ec", format!("2^{log_size}")), |b| {
-            b.iter(|| G1Projective::msm_unchecked(&bases, &scalars))
+            b.iter(|| G1Projective::msm_unchecked(&bases, &scalars));
         });
         group.bench_function(
             BenchmarkId::new("taceo-ark-algebra", format!("2^{log_size}")),
@@ -60,7 +64,7 @@ fn fft_bench(c: &mut Criterion) {
                     || values.clone(),
                     |values| ark.fft_in_place(values),
                     BatchSize::LargeInput,
-                )
+                );
             },
         );
         group.bench_function(
@@ -73,7 +77,7 @@ fn fft_bench(c: &mut Criterion) {
                         fft::bit_reverse(values);
                     },
                     BatchSize::LargeInput,
-                )
+                );
             },
         );
 
@@ -89,7 +93,7 @@ fn fft_bench(c: &mut Criterion) {
                         ark_coset.fft_in_place(values);
                     },
                     BatchSize::LargeInput,
-                )
+                );
             },
         );
         group.bench_function(
@@ -107,7 +111,7 @@ fn fft_bench(c: &mut Criterion) {
                         domain.fft_out_to_in(values);
                     },
                     BatchSize::LargeInput,
-                )
+                );
             },
         );
     }

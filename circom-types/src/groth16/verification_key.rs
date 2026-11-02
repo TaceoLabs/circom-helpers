@@ -48,6 +48,10 @@ pub struct VerificationKey<P: Pairing + CanonicalJsonSerialize> {
 
 impl<P: Pairing + CanonicalJsonSerialize> VerificationKey<P> {
     /// Deserializes a [`VerificationKey`] from a reader.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn from_reader<R: Read>(r: R) -> Result<Self, serde_json::Error> {
         serde_json::from_reader(r)
     }

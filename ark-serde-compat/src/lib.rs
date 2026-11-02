@@ -1,29 +1,4 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
-#![deny(missing_docs)]
-#![deny(clippy::all, clippy::pedantic)]
-#![deny(
-    clippy::allow_attributes_without_reason,
-    clippy::assertions_on_result_states,
-    clippy::dbg_macro,
-    clippy::decimal_literal_representation,
-    clippy::exhaustive_enums,
-    clippy::iter_over_hash_type,
-    clippy::let_underscore_must_use,
-    clippy::missing_assert_message,
-    clippy::print_stderr,
-    clippy::print_stdout,
-    clippy::undocumented_unsafe_blocks,
-    clippy::unnecessary_safety_comment,
-    clippy::unwrap_used
-)]
-#![allow(
-    clippy::missing_errors_doc,
-    reason = "We allow missing error sections in this crate"
-)]
-#![allow(
-    clippy::needless_pass_by_value,
-    reason = "We want to consume most of the time as only internal helpers"
-)]
 #![allow(
     clippy::doc_markdown,
     reason = "We allow BabyJubJub to not be in backticks"
@@ -68,18 +43,38 @@ mod impl_macro;
 /// with compressed mode.
 pub trait CanonicalJsonSerialize: Pairing {
     /// Serializes a G1 affine point as an array of coordinate strings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     fn serialize_g1<S: Serializer>(p: &Self::G1Affine, ser: S) -> Result<S::Ok, S::Error>;
 
     /// Serializes a G2 affine point as an array of coordinate strings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     fn serialize_g2<S: Serializer>(p: &Self::G2Affine, ser: S) -> Result<S::Ok, S::Error>;
 
     /// Serializes a target group (GT) element as an array of coordinate strings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     fn serialize_gt<S: Serializer>(p: &Self::TargetField, ser: S) -> Result<S::Ok, S::Error>;
 
     /// Serializes a sequence of G1 affine points as an array of coordinate arrays.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     fn serialize_g1_seq<S: Serializer>(p: &[Self::G1Affine], ser: S) -> Result<S::Ok, S::Error>;
 
     /// Deserializes a G1 affine point from coordinate strings with full validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     fn deserialize_g1<'de, D>(deserializer: D) -> Result<Self::G1Affine, D::Error>
     where
         D: de::Deserializer<'de>;
@@ -89,11 +84,19 @@ pub trait CanonicalJsonSerialize: Pairing {
     /// # Safety
     ///
     /// This skips curve and subgroup checks. Only use with trusted input.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     fn deserialize_g1_unchecked<'de, D>(deserializer: D) -> Result<Self::G1Affine, D::Error>
     where
         D: de::Deserializer<'de>;
 
     /// Deserializes a G2 affine point from coordinate strings with full validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     fn deserialize_g2<'de, D>(deserializer: D) -> Result<Self::G2Affine, D::Error>
     where
         D: de::Deserializer<'de>;
@@ -103,16 +106,28 @@ pub trait CanonicalJsonSerialize: Pairing {
     /// # Safety
     ///
     /// This skips curve and subgroup checks. Only use with trusted input.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     fn deserialize_g2_unchecked<'de, D>(deserializer: D) -> Result<Self::G2Affine, D::Error>
     where
         D: de::Deserializer<'de>;
 
     /// Deserializes a target group (GT) element from coordinate strings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     fn deserialize_gt<'de, D>(deserializer: D) -> Result<Self::TargetField, D::Error>
     where
         D: de::Deserializer<'de>;
 
     /// Deserializes a sequence of G1 affine points from coordinate arrays with full validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     fn deserialize_g1_seq<'de, D>(deserializer: D) -> Result<Vec<Self::G1Affine>, D::Error>
     where
         D: de::Deserializer<'de>;
@@ -122,6 +137,10 @@ pub trait CanonicalJsonSerialize: Pairing {
     /// # Safety
     ///
     /// This skips curve and subgroup checks for all points. Only use with trusted input.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     fn deserialize_g1_seq_unchecked<'de, D>(
         deserializer: D,
     ) -> Result<Vec<Self::G1Affine>, D::Error>
@@ -174,6 +193,10 @@ pub enum CheckElement {
 ///     field: Fr,
 /// }
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the serializer fails.
 pub fn serialize_f<S: Serializer>(p: &impl PrimeField, ser: S) -> Result<S::Ok, S::Error> {
     if ser.is_human_readable() {
         ser.serialize_str(&p.to_string())
@@ -202,6 +225,10 @@ pub fn serialize_f<S: Serializer>(p: &impl PrimeField, ser: S) -> Result<S::Ok, 
 ///     fields: Vec<Fr>,
 /// }
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the serializer fails.
 pub fn serialize_f_seq<S: Serializer, F: PrimeField>(ps: &[F], ser: S) -> Result<S::Ok, S::Error> {
     if ser.is_human_readable() {
         let mut seq = ser.serialize_seq(Some(ps.len()))?;
@@ -236,6 +263,10 @@ pub fn serialize_f_seq<S: Serializer, F: PrimeField>(ps: &[F], ser: S) -> Result
 ///     field: Fr,
 /// }
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_f_signed<'de, F, D>(deserializer: D) -> Result<F, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -266,6 +297,10 @@ where
 ///     field: Fr,
 /// }
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_f<'de, F, D>(deserializer: D) -> Result<F, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -296,6 +331,10 @@ where
 ///     fields: Vec<Fr>,
 /// }
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_f_seq<'de, D, F>(deserializer: D) -> Result<Vec<F>, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -328,6 +367,10 @@ where
 ///     fields: Vec<Fr>,
 /// }
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_f_seq_signed<'de, D, F>(deserializer: D) -> Result<Vec<F>, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -358,6 +401,10 @@ where
 ///     fields: [Fr; 4],
 /// }
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_f_array<'de, const LENGTH: usize, D, F>(
     deserializer: D,
 ) -> Result<[F; LENGTH], D::Error>
@@ -369,7 +416,7 @@ where
         phantom_data: PhantomData,
         size: Some(LENGTH),
     };
-    deser_array(deserializer, visitor)
+    deser_array(deserializer, &visitor)
 }
 
 /// Deserialize a fixed-size array of prime field elements. Allows negative values and is consistent with Circom's negative value parsing. Will return an error if element is larger than modulus.
@@ -392,6 +439,10 @@ where
 ///     fields: [Fr; 4],
 /// }
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_f_array_signed<'de, const LENGTH: usize, D, F>(
     deserializer: D,
 ) -> Result<[F; LENGTH], D::Error>
@@ -403,7 +454,7 @@ where
         phantom_data: PhantomData,
         size: Some(LENGTH),
     };
-    deser_array(deserializer, visitor)
+    deser_array(deserializer, &visitor)
 }
 
 /// Serialize a G1 affine point.
@@ -414,6 +465,10 @@ where
 ///
 /// This is a generic function that works with any curve implementing `AffineRepr`.
 /// For curve-specific helpers, see the module functions like `bn254::serialize_g1`.
+///
+/// # Errors
+///
+/// Returns an error if the serializer fails.
 pub fn serialize_g1<S: Serializer, F: Field>(
     p: &impl AffineRepr<BaseField = F>,
     ser: S,
@@ -444,6 +499,10 @@ pub fn serialize_g1<S: Serializer, F: Field>(
 /// This is a generic function that works with any curve implementing `AffineRepr` with
 /// a quadratic extension base field. For curve-specific helpers, see the module functions
 /// like `bn254::serialize_g2`.
+///
+/// # Errors
+///
+/// Returns an error if the serializer fails.
 pub fn serialize_g2<F, S: Serializer>(
     p: &impl AffineRepr<BaseField = QuadExtField<F>>,
     ser: S,
@@ -486,6 +545,10 @@ where
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
 /// like `bn254::serialize_gt`.
+///
+/// # Errors
+///
+/// Returns an error if the serializer fails.
 pub fn serialize_gt<S: Serializer, T>(
     p: &QuadExtField<Fp12ConfigWrapper<T>>,
     ser: S,
@@ -533,6 +596,10 @@ where
 ///
 /// This is a generic function. For curve-specific helpers, see the module functions
 /// like `bn254::serialize_g1_seq`.
+///
+/// # Errors
+///
+/// Returns an error if the serializer fails.
 pub fn serialize_g1_seq<S: Serializer, F: PrimeField>(
     ps: &[impl AffineRepr<BaseField = F>],
     ser: S,
@@ -606,7 +673,7 @@ where
 #[inline]
 pub(crate) fn deser_array<'de, T, const LENGTH: usize, D, V>(
     deserializer: D,
-    visitor: V,
+    visitor: &V,
 ) -> Result<[T; LENGTH], D::Error>
 where
     D: de::Deserializer<'de>,
@@ -614,7 +681,7 @@ where
 {
     deser_seq_or_byte_buf(deserializer, visitor.clone())?
         .try_into()
-        .map_err(|arr: Vec<_>| de::Error::invalid_length(arr.len(), &visitor))
+        .map_err(|arr: Vec<_>| de::Error::invalid_length(arr.len(), visitor))
 }
 
 #[derive(Default)]
@@ -667,6 +734,10 @@ where
 ///
 /// Only use this function with trusted input. Invalid points can lead to undefined
 /// behavior or security vulnerabilities in downstream cryptographic operations.
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_g1_unchecked<'de, D, F, G1>(deserializer: D) -> Result<Affine<G1>, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -718,6 +789,10 @@ where
 ///
 /// Only use this function with trusted input. Invalid points can lead to undefined
 /// behavior or security vulnerabilities in downstream cryptographic operations.
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_g2_unchecked<'de, D, F, Q, G2>(deserializer: D) -> Result<Affine<G2>, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -795,6 +870,10 @@ where
 ///
 /// Only use this function with trusted input. Invalid points can lead to undefined
 /// behavior or security vulnerabilities in downstream cryptographic operations.
+///
+/// # Errors
+///
+/// Returns an error if the input is malformed or fails validation.
 pub fn deserialize_g1_seq_unchecked<'de, D, F, G1>(
     deserializer: D,
 ) -> Result<Vec<Affine<G1>>, D::Error>
@@ -1272,11 +1351,19 @@ pub mod field {
     use serde::{Serializer, de};
 
     /// Serialize a prime field element as a decimal string (human-readable) or compressed bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     pub fn serialize<S: Serializer>(p: &impl PrimeField, ser: S) -> Result<S::Ok, S::Error> {
         super::serialize_f(p, ser)
     }
 
     /// Deserialize an unsigned prime field element from a decimal string or compressed bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     pub fn deserialize<'de, F, D>(deserializer: D) -> Result<F, D::Error>
     where
         D: de::Deserializer<'de>,
@@ -1306,11 +1393,19 @@ pub mod field_signed {
     use serde::{Serializer, de};
 
     /// Serialize a prime field element as a decimal string (human-readable) or compressed bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     pub fn serialize<S: Serializer>(p: &impl PrimeField, ser: S) -> Result<S::Ok, S::Error> {
         super::serialize_f(p, ser)
     }
 
     /// Deserialize a signed prime field element from a decimal string or compressed bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     pub fn deserialize<'de, F, D>(deserializer: D) -> Result<F, D::Error>
     where
         D: de::Deserializer<'de>,
@@ -1338,11 +1433,19 @@ pub mod field_seq {
     use serde::{Serializer, de};
 
     /// Serialize a sequence of prime field elements.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     pub fn serialize<S: Serializer, F: PrimeField>(ps: &[F], ser: S) -> Result<S::Ok, S::Error> {
         super::serialize_f_seq(ps, ser)
     }
 
     /// Deserialize a sequence of unsigned prime field elements.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     pub fn deserialize<'de, D, F>(deserializer: D) -> Result<Vec<F>, D::Error>
     where
         D: de::Deserializer<'de>,
@@ -1372,11 +1475,19 @@ pub mod field_seq_signed {
     use serde::{Serializer, de};
 
     /// Serialize a sequence of prime field elements.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the serializer fails.
     pub fn serialize<S: Serializer, F: PrimeField>(ps: &[F], ser: S) -> Result<S::Ok, S::Error> {
         super::serialize_f_seq(ps, ser)
     }
 
     /// Deserialize a sequence of signed prime field elements.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or fails validation.
     pub fn deserialize<'de, D, F>(deserializer: D) -> Result<Vec<F>, D::Error>
     where
         D: de::Deserializer<'de>,

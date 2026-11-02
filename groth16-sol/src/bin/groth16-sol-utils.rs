@@ -1,9 +1,11 @@
+//! CLI to extract Solidity verifiers and generate proof parameters for BN254 Groth16.
+
 use ark_bn254::Bn254;
 use ark_ff::Zero;
 use circom_types::groth16::{Proof, PublicInput, VerificationKey};
 use clap::{Args, Parser, Subcommand};
 use eyre::Context;
-use std::{fs::File, path::PathBuf, process::ExitCode};
+use std::{fs::File, io::Write as _, path::PathBuf, process::ExitCode};
 use taceo_groth16_sol::askama::Template;
 use taceo_groth16_sol::{SolidityVerifierConfig, SolidityVerifierContext};
 
@@ -90,7 +92,7 @@ fn generate_call(config: GenerateCallConfig) -> eyre::Result<ExitCode> {
     if let Some(output) = output {
         std::fs::write(output, result)?;
     } else {
-        println!("{result}");
+        writeln!(std::io::stdout(), "{result}")?;
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -109,11 +111,11 @@ fn extract_verifier(config: ExtractVerifierConfig) -> eyre::Result<ExitCode> {
         vk: vk.into(),
         config: SolidityVerifierConfig { pragma_version },
     };
-    let rendered = contract.render().unwrap();
+    let rendered = contract.render().context("while rendering contract")?;
     if let Some(output) = output {
         std::fs::write(output, rendered).context("while writing output")?;
     } else {
-        println!("{rendered}")
+        writeln!(std::io::stdout(), "{rendered}")?;
     }
     Ok(ExitCode::SUCCESS)
 }

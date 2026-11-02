@@ -98,7 +98,7 @@ pub(crate) mod reader_utils {
 #[cfg(test)]
 pub(crate) mod tests {
     // allow the tests folder to be unused in case we turn off the features
-    #![allow(unused)]
+    #![allow(unused, reason = "unused when all curve features are disabled")]
     use std::path::PathBuf;
 
     #[cfg(feature = "bn254")]
@@ -195,7 +195,7 @@ mod alloc_guard {
 
 #[cfg(test)]
 pub(crate) mod test_utils {
-    #![allow(unused)]
+    #![allow(unused, reason = "unused when all curve features are disabled")]
     #[cfg(feature = "bls12-381")]
     macro_rules! to_g1_bls12_381 {
         ($x: expr, $y: expr) => {{

@@ -35,6 +35,7 @@ impl<P: Pairing> ArkZkey<P> {
 
 impl<F: PrimeField> ConstraintMatricesWrapper<F> {
     /// Consumes the wrapper type and returns the underlying `ConstraintMatrices`.
+    #[must_use]
     pub fn into_inner(self) -> ConstraintMatrices<F> {
         self.into()
     }
