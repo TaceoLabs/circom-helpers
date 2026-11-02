@@ -112,7 +112,7 @@ mod template {
 
             let rendered = contract.render().unwrap();
             // Askama supresses trailing newlines, so we add one for comparison
-            let rendered = format!("{}\n", rendered);
+            let rendered = format!("{rendered}\n");
             assert_eq!(rendered, TEST_GNARK_OUTPUT);
         }
     }
@@ -131,7 +131,7 @@ fn compress_g1_point(point: &G1Affine) -> U256 {
             if y == y_computed {
                 x_comp << 1
             } else {
-                assert_eq!(y, -y_computed);
+                assert_eq!(y, -y_computed, "y must be one of the two square roots");
                 (x_comp << 1) | U256::ONE
             }
         }
@@ -148,12 +148,12 @@ fn compress_g2_point(point: &G2Affine) -> [U256; 2] {
             let a_3 = x.c0.pow([3]);
             let b_3 = x.c1.pow([3]);
 
-            let frac_27_82 = Fq::from(27) * Fq::from(82).inverse().unwrap();
-            let frac_3_82 = Fq::from(3) * Fq::from(82).inverse().unwrap();
+            let frac_27_82 = Fq::from(27) * Fq::from(82).inverse().expect("82 is invertible");
+            let frac_3_82 = Fq::from(3) * Fq::from(82).inverse().expect("82 is invertible");
             let y0_pos = (n3ab * x.c1) + a_3 + frac_27_82;
             let y1_pos = -((n3ab * x.c0) + b_3 + frac_3_82);
 
-            let half = Fq::from(2).inverse().unwrap();
+            let half = Fq::from(2).inverse().expect("2 is invertible");
             let d = ((y0_pos * y0_pos) + (y1_pos * y1_pos))
                 .sqrt()
                 .expect("x is not on curve, this should not happen");
@@ -172,7 +172,7 @@ fn compress_g2_point(point: &G2Affine) -> [U256; 2] {
                     [b0_comp << 2, b1_comp]
                 }
             } else {
-                assert_eq!(y, -y_computed);
+                assert_eq!(y, -y_computed, "y must be one of the two square roots");
                 let b0_comp: U256 = x.c0.into();
                 let b1_comp: U256 = x.c1.into();
                 if hint {
@@ -193,6 +193,7 @@ fn compress_g2_point(point: &G2Affine) -> [U256; 2] {
 /// # Panics
 ///
 /// This function will panic if the proof contains points that are not on the respective curves.
+#[must_use]
 pub fn prepare_compressed_proof(proof: &Proof<ark_bn254::Bn254>) -> [U256; 4] {
     let a_compressed = compress_g1_point(&proof.a);
     let [b0_compressed, b1_compressed] = compress_g2_point(&proof.b);
@@ -204,6 +205,7 @@ pub fn prepare_compressed_proof(proof: &Proof<ark_bn254::Bn254>) -> [U256; 4] {
 /// Prepare an uncompressed Groth16 proof for verification in the generated contract.
 /// The proof is represented as an array of 8 U256 values, corresponding to the
 /// x and y coordinates of the points A, B, and C in the proof.
+#[must_use]
 pub fn prepare_uncompressed_proof(proof: &Proof<ark_bn254::Bn254>) -> [U256; 8] {
     // Infinity is represented as (0, 0)
     let (ax, ay) = proof.a.xy().unwrap_or_default();
@@ -283,8 +285,8 @@ fn decompress_g2_point(compressed: [U256; 2]) -> Result<G2Affine, InvalidCompres
     let a_3 = x0.pow([3]);
     let b_3 = x1.pow([3]);
 
-    let frac_27_82 = Fq::from(27) * Fq::from(82).inverse().unwrap();
-    let frac_3_82 = Fq::from(3) * Fq::from(82).inverse().unwrap();
+    let frac_27_82 = Fq::from(27) * Fq::from(82).inverse().expect("82 is invertible");
+    let frac_3_82 = Fq::from(3) * Fq::from(82).inverse().expect("82 is invertible");
     let y0_pos = (n3ab * x1) + a_3 + frac_27_82;
     let y1_pos = -((n3ab * x0) + b_3 + frac_3_82);
 
@@ -292,7 +294,7 @@ fn decompress_g2_point(compressed: [U256; 2]) -> Result<G2Affine, InvalidCompres
     let y = y2.sqrt().ok_or(InvalidCompressedPoint)?;
     let y = if negate_point { -y } else { y };
     // recompute the hint and check it against the compressed value to ensure the point is valid
-    let half = Fq::from(2).inverse().unwrap();
+    let half = Fq::from(2).inverse().expect("2 is invertible");
     let d = ((y0_pos * y0_pos) + (y1_pos * y1_pos))
         .sqrt()
         .ok_or(InvalidCompressedPoint)?;
