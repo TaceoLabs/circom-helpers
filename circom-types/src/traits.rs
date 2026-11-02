@@ -5,7 +5,7 @@ use std::io::Read;
 use ark_ec::pairing::Pairing;
 use ark_serde_compat::{CanonicalJsonSerialize, CheckElement};
 use ark_serialize::SerializationError;
-#[allow(unused)]
+#[allow(unused, reason = "unused when all curve features are disabled")]
 type SerResult<T> = Result<T, SerializationError>;
 
 #[cfg(any(feature = "bn254", feature = "bls12-381"))]
@@ -173,31 +173,56 @@ pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     /// Size of uncompressed element of Gt in bytes
     const GT_SERIALIZED_BYTE_SIZE_UNCOMPRESSED: usize;
 
-    /// Size of element in ScalarField
+    /// Size of element in `ScalarField`
     const SCALAR_FIELD_BYTE_SIZE: usize;
-    /// Size of element in BaseField
+    /// Size of element in `BaseField`
     const BASE_FIELD_BYTE_SIZE: usize;
     /// Returns the name of the curve as defined in Circom
     fn get_circom_name() -> String;
     /// Deserializes element of G1 from bytes where the element is already in montgomery form (no montgomery reduction performed)
-    /// Used in default multithreaded impl of g1_vec_from_reader, because `Read` cannot be shared across threads
+    /// Used in default multithreaded impl of `g1_vec_from_reader`, because `Read` cannot be shared across threads
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     fn g1_from_bytes(bytes: &[u8], check: CheckElement) -> SerResult<Self::G1Affine>;
     /// Deserializes element of G2 from bytes where the element is already in montgomery form (no montgomery reduction performed)
-    /// Used in default multithreaded impl of g2_vec_from_reader, because `Read` cannot be shared across threads
+    /// Used in default multithreaded impl of `g2_vec_from_reader`, because `Read` cannot be shared across threads
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     fn g2_from_bytes(bytes: &[u8], check: CheckElement) -> SerResult<Self::G2Affine>;
     /// Deserializes element of G1 from reader where the element is already in montgomery form (no montgomery reduction performed)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     fn g1_from_reader(reader: impl Read, check: CheckElement) -> SerResult<Self::G1Affine>;
     /// Deserializes element of G2 from reader where the element is already in montgomery form (no montgomery reduction performed)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     fn g2_from_reader(reader: impl Read, check: CheckElement) -> SerResult<Self::G2Affine>;
     /// Deserializes vec of G1 from reader where the elements are already in montgomery form (no montgomery reduction performed)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
+    #[allow(
+        clippy::chunks_exact_to_as_chunks,
+        reason = "chunk size is a generic associated const"
+    )]
     fn g1_vec_from_reader(
         reader: impl Read,
         num: usize,
         check: CheckElement,
     ) -> SerResult<Vec<Self::G1Affine>> {
-        let buf = read_elements(reader, Self::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED, num)?;
         #[cfg(feature = "parallel")]
         use rayon::prelude::*;
+
+        let buf = read_elements(reader, Self::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED, num)?;
 
         #[cfg(feature = "parallel")]
         let ret_val = buf
@@ -214,15 +239,23 @@ pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     }
     /// Deserializes vec of G2 from reader where the elements are already in montgomery form (no montgomery reduction performed)
     /// The default implementation runs multithreaded using rayon
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
+    #[allow(
+        clippy::chunks_exact_to_as_chunks,
+        reason = "chunk size is a generic associated const"
+    )]
     fn g2_vec_from_reader(
         reader: impl Read,
         num: usize,
         check: CheckElement,
     ) -> SerResult<Vec<Self::G2Affine>> {
-        let buf = read_elements(reader, Self::G2_SERIALIZED_BYTE_SIZE_UNCOMPRESSED, num)?;
-
         #[cfg(feature = "parallel")]
         use rayon::prelude::*;
+
+        let buf = read_elements(reader, Self::G2_SERIALIZED_BYTE_SIZE_UNCOMPRESSED, num)?;
 
         #[cfg(feature = "parallel")]
         let ret_val = buf
@@ -239,12 +272,24 @@ pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     }
 
     /// Deserializes an element of [`Pairing::ScalarField`] where the element is already in montgomery form (no montgomery reduction performed).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     fn fr_from_montgomery_reader(reader: impl Read) -> SerResult<Self::ScalarField>;
 
     /// Deserializes an element of [`Pairing::ScalarField`] where the element is already in montgomery form BUT we still need to perform a montgomery reduction. This is necessary for the deserialization of Circom's Zkey.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     fn fr_from_reader_for_groth16_zkey(reader: impl Read) -> SerResult<Self::ScalarField>;
 
     /// Deserializes an element of [`Pairing::BaseField`] where the element is already in montgomery form (no montgomery reduction performed).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     fn fq_from_montgomery_reader(reader: impl Read) -> SerResult<Self::BaseField>;
 }
 

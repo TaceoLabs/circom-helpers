@@ -37,9 +37,9 @@ pub enum ZkeyParserError {
 
 #[derive(Debug)]
 pub(crate) struct BinFile<P: Pairing + CircomArkworksPairingBridge> {
-    #[expect(dead_code)]
+    #[expect(dead_code, reason = "parsed from the file header but never read")]
     ftype: String,
-    #[expect(dead_code)]
+    #[expect(dead_code, reason = "parsed from the file header but never read")]
     version: u32,
     sections: Vec<Vec<u8>>,
     phantom_data: PhantomData<P>,

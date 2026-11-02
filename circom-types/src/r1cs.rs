@@ -65,7 +65,7 @@ pub enum R1CSParserError {
     /// Error during reading circom file header
     #[error(transparent)]
     WrongHeader(#[from] InvalidHeaderError),
-    /// Error describing that the ScalarField from curve does not match in witness file
+    /// Error describing that the `ScalarField` from curve does not match in witness file
     #[error("ScalarField from curve does not match in witness file")]
     WrongScalarField,
 }
@@ -95,8 +95,30 @@ pub struct R1CS<P: Pairing> {
     pub n_constraints: usize,
 }
 
+fn find_section(
+    sections: &HashMap<u32, u64>,
+    section_type: u32,
+    kind: &str,
+    name: &str,
+) -> std::io::Result<u64> {
+    sections.get(&section_type).copied().ok_or_else(|| {
+        Error::new(
+            ErrorKind::InvalidData,
+            format!("No section {kind} for {name} type found"),
+        )
+    })
+}
+
 impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
     /// Parses an [`R1CS`] file from a reader and returns [`R1CSParserError`] on failure
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a `u32` does not fit into `usize`, which can only happen on targets narrower than 32 bits.
     pub fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
         reader_utils::read_header(&mut reader, R1CS_HEADER)?;
         let version = reader.read_u32::<LittleEndian>()?;
@@ -132,21 +154,11 @@ impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
         let constraint_type = 2;
         let wire2label_type = 3;
 
-        let header_offset = sec_offsets.get(&header_type).ok_or_else(|| {
-            Error::new(
-                ErrorKind::InvalidData,
-                "No section offset for header type found",
-            )
-        });
+        let header_offset = find_section(&sec_offsets, header_type, "offset", "header")?;
 
-        reader.seek(SeekFrom::Start(*header_offset?))?;
+        reader.seek(SeekFrom::Start(header_offset))?;
 
-        let header_size = sec_sizes.get(&header_type).ok_or_else(|| {
-            Error::new(
-                ErrorKind::InvalidData,
-                "No section size for header type found",
-            )
-        });
+        let header_size = find_section(&sec_sizes, header_type, "size", "header")?;
 
         let field_size =
             usize::try_from(reader.read_u32::<LittleEndian>()?).expect("u32 fits into usize");
@@ -154,7 +166,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
             return Err(R1CSParserError::WrongScalarField);
         }
 
-        if *header_size? != 32 + field_size as u64 {
+        if header_size != 32 + field_size as u64 {
             return Err(R1CSParserError::WrongScalarField);
         }
 
@@ -173,35 +185,22 @@ impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
         let n_constraints =
             usize::try_from(reader.read_u32::<LittleEndian>()?).expect("u32 fits into usize");
 
-        let constraint_offset = sec_offsets.get(&constraint_type).ok_or_else(|| {
-            Error::new(
-                ErrorKind::InvalidData,
-                "No section offset for constraint type found",
-            )
-        });
+        let constraint_offset =
+            find_section(&sec_offsets, constraint_type, "offset", "constraint")?;
 
-        reader.seek(SeekFrom::Start(*constraint_offset?))?;
+        reader.seek(SeekFrom::Start(constraint_offset))?;
 
         let constraints =
             read_constraints::<&mut R, P>(&mut reader, n_constraints, num_variables, field_size)?;
 
-        let wire2label_offset = sec_offsets.get(&wire2label_type).ok_or_else(|| {
-            Error::new(
-                ErrorKind::InvalidData,
-                "No section offset for wire2label type found",
-            )
-        });
+        let wire2label_offset =
+            find_section(&sec_offsets, wire2label_type, "offset", "wire2label")?;
 
-        reader.seek(SeekFrom::Start(*wire2label_offset?))?;
+        reader.seek(SeekFrom::Start(wire2label_offset))?;
 
-        let wire2label_size = sec_sizes.get(&wire2label_type).ok_or_else(|| {
-            Error::new(
-                ErrorKind::InvalidData,
-                "No section size for wire2label type found",
-            )
-        })?;
+        let wire2label_size = find_section(&sec_sizes, wire2label_type, "size", "wire2label")?;
 
-        let wire_mapping = read_map(&mut reader, *wire2label_size, num_variables)?;
+        let wire_mapping = read_map(&mut reader, wire2label_size, num_variables)?;
 
         let num_inputs = 1 + n_pub_in as usize + n_pub_out as usize;
         let num_aux = num_variables.checked_sub(num_inputs).ok_or_else(|| {
@@ -215,7 +214,13 @@ impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
             num_inputs,
             num_variables,
             constraints,
-            wire_mapping: wire_mapping.iter().map(|e| *e as usize).collect(),
+            wire_mapping: wire_mapping
+                .iter()
+                .map(|e| usize::try_from(*e))
+                .collect::<std::result::Result<Vec<usize>, _>>()
+                .map_err(|_| {
+                    Error::new(ErrorKind::InvalidData, "wire id does not fit into usize")
+                })?,
             n_pub_out,
             n_pub_in,
             n_prv_in,

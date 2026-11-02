@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Danger
 /// In contrast to most deserialization functions in this crate, this struct explicitly supports signed integers as they are also supported by Circom for public inputs.
-/// This means there is inherent malleability in the representation of public inputs, as negative integers can be represented in multiple ways (e.g., -1 and field_modulus - 1).
+/// This means there is inherent malleability in the representation of public inputs, as negative integers can be represented in multiple ways (e.g., -1 and `field_modulus` - 1).
 /// Users of this struct should be aware of this malleability and handle it appropriately in their applications.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -20,6 +20,7 @@ pub struct PublicInput<F: PrimeField>(
 
 impl<F: PrimeField> PublicInput<F> {
     /// Consumes `self` and returns the inner values.
+    #[must_use]
     pub fn into_inner(self) -> Vec<F> {
         self.0
     }
