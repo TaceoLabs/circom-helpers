@@ -54,8 +54,9 @@ const BUTTERFLY_CHUNK: usize = 1 << 10;
 ///
 /// `index` must be less than `2^log_len`; for larger indices the result is unspecified.
 #[inline]
+#[must_use]
 pub const fn bit_reverse_index(index: usize, log_len: u32) -> usize {
-    (index as u64).reverse_bits().wrapping_shr(64 - log_len) as usize
+    index.reverse_bits().wrapping_shr(usize::BITS - log_len)
 }
 
 /// Permutes `values` between natural and bit-reversed order. The permutation is an involution,
@@ -100,6 +101,7 @@ impl<F: FftField> Domain<F> {
     /// as [`ark_poly::Radix2EvaluationDomain`].
     ///
     /// Returns `None` if the domain is larger than the two-adicity of `F` allows.
+    #[must_use]
     pub fn new(num_coeffs: usize) -> Option<Self> {
         let size = num_coeffs.next_power_of_two();
         if size.trailing_zeros() > F::TWO_ADICITY {
@@ -262,7 +264,7 @@ fn max_splits() -> usize {
         .trailing_zeros() as usize
 }
 
-#[inline(always)]
+#[inline]
 fn butterfly_dif<F: FftField, T: DomainCoeff<F>>(lo: &mut T, hi: &mut T, twiddle: F) {
     let mut neg = *lo;
     neg -= *hi;
@@ -271,7 +273,7 @@ fn butterfly_dif<F: FftField, T: DomainCoeff<F>>(lo: &mut T, hi: &mut T, twiddle
     *hi = neg;
 }
 
-#[inline(always)]
+#[inline]
 fn butterfly_dit<F: FftField, T: DomainCoeff<F>>(lo: &mut T, hi: &mut T, twiddle: F) {
     *hi *= twiddle;
     let mut neg = *lo;
@@ -537,7 +539,10 @@ mod tests {
             assert_eq!(*value, current);
             current *= base;
         }
-        assert!(powers(base, 0).is_empty());
+        assert!(
+            powers(base, 0).is_empty(),
+            "zero-length table must be empty"
+        );
     }
 
     #[test]

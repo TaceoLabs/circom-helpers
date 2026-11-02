@@ -8,8 +8,12 @@ readme = "./README.md"
 homepage.workspace = true
 repository.workspace = true
 license.workspace = true
-keywords = ["arkworks", "msm", "fft", "zero-knowledge", "zk"]
+keywords = ["arkworks", "fft", "msm", "zero-knowledge", "zk"]
 exclude = [".gitignore"]
+
+[[bench]]
+harness = false
+name = "algebra"
 
 [dependencies]
 ark-ec.workspace = true
@@ -18,16 +22,15 @@ ark-poly.workspace = true
 ark-std.workspace = true
 rayon.workspace = true
 
-[[bench]]
-harness = false
-name = "algebra"
-
 [dev-dependencies]
 ark-bls12-381.workspace = true
 ark-bn254.workspace = true
 # The benchmarks compare against the arkworks implementations, which have to run with rayon for
 # the comparison to be fair.
-ark-ec = { workspace = true, features = ["std", "parallel"] }
-ark-poly = { workspace = true, features = ["std", "parallel"] }
+ark-ec = { workspace = true, features = ["parallel", "std"] }
+ark-poly = { workspace = true, features = ["parallel", "std"] }
 criterion = "0.8"
 rand.workspace = true
+
+[lints]
+workspace = true
