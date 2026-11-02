@@ -99,6 +99,7 @@ macro_rules! impl_json_canonical {
                 "coordinate is a decimal string. The point at infinity is represented as `[\"0\", \"1\", \"0\"]`.\n\n",
                 "This helper forwards to `crate::serialize_g1`."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
             pub fn serialize_g1<S: Serializer>(
                 p: &$curve::G1Affine,
                 ser: S,
@@ -114,6 +115,7 @@ macro_rules! impl_json_canonical {
                 "where each projective coordinate is an Fq2 element represented by a pair of decimal strings.\n\n",
                 "This helper forwards to `crate::serialize_g2`."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
             pub fn serialize_g2<S: Serializer>(p: &$curve::G2Affine, ser: S) -> Result<S::Ok, S::Error>
             {
                 crate::serialize_g2(p, ser)
@@ -128,6 +130,7 @@ macro_rules! impl_json_canonical {
                 "structure `[[[a0, a1], [b0, b1], [c0, c1]], [[d0, d1], [e0, e1], [f0, f1]]]`.\n\n",
                 "This helper forwards to `crate::serialize_gt`."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
             pub fn serialize_gt<S: Serializer>(p: &$curve::Fq12, ser: S) -> Result<S::Ok, S::Error> {
                 crate::serialize_gt(p, ser)
             }
@@ -140,6 +143,7 @@ macro_rules! impl_json_canonical {
                 "the fixed sentinel `[\"0\", \"1\", \"0\"]`.\n\n",
                 "This helper forwards to `crate::serialize_g1_seq`."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
             pub fn serialize_g1_seq<S: Serializer>(
                 ps: &[$curve::G1Affine],
                 ser: S,
@@ -155,6 +159,7 @@ macro_rules! impl_json_canonical {
                 "returns an affine point. The point at infinity must appear exactly as `[\"0\", \"1\", \"0\"]`.\n\n",
                 "For a faster variant that skips safety checks, see `deserialize_g1_unchecked`."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
             pub fn deserialize_g1<'de, D>(deserializer: D) -> Result<$curve::G1Affine, D::Error>
             where
                 D: de::Deserializer<'de>,
@@ -174,6 +179,7 @@ macro_rules! impl_json_canonical {
                 "produced internally). Misuse can lead to invalid points and downstream security issues.\n\n",
                 "Returns an affine point. The point at infinity must still be `[\"0\", \"1\", \"0\"]`."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
             pub fn deserialize_g1_unchecked<'de, D>(deserializer: D) -> Result<$curve::G1Affine, D::Error>
             where
                 D: de::Deserializer<'de>,
@@ -188,6 +194,7 @@ macro_rules! impl_json_canonical {
                 "Performs full validation (field decoding, on-curve, subgroup) and returns an affine point.\n",
                 "Use `deserialize_g2_unchecked` if you need performance and already trust the source."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
             pub fn deserialize_g2<'de, D>(deserializer: D) -> Result<$curve::G2Affine, D::Error>
             where
                 D: de::Deserializer<'de>,
@@ -205,6 +212,7 @@ macro_rules! impl_json_canonical {
                 "- Subgroup membership\n\n",
                 "Only use when the input is known-good. Returns an affine point."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
             pub fn deserialize_g2_unchecked<'de, D>(deserializer: D) -> Result<$curve::G2Affine, D::Error>
             where
                 D: de::Deserializer<'de>,
@@ -218,6 +226,7 @@ macro_rules! impl_json_canonical {
                 " GT (Fq12) element from its 2×3×2 decimal string representation.\n\n",
                 "Performs full validation of all component field elements. Returns an `Fq12` value."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
             pub fn deserialize_gt<'de, D>(deserializer: D) -> Result<$curve::Fq12, D::Error>
             where
                 D: de::Deserializer<'de>,
@@ -231,6 +240,7 @@ macro_rules! impl_json_canonical {
                 " G1 points from an array of `[x, y, z]` projective decimal string triples.\n\n",
                 "Each element is fully validated. The point at infinity must be `[\"0\", \"1\", \"0\"]`."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
             pub fn deserialize_g1_seq<'de, D>(deserializer: D) -> Result<Vec<$curve::G1Affine>, D::Error>
             where
                 D: de::Deserializer<'de>,
@@ -248,6 +258,7 @@ macro_rules! impl_json_canonical {
                 "- Subgroup membership\n\n",
                 "Only use when all inputs are guaranteed valid."
             )]
+            #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
             pub fn deserialize_g1_seq_unchecked<'de, D>(deserializer: D) -> Result<Vec<$curve::G1Affine>, D::Error>
             where
                 D: de::Deserializer<'de>,
@@ -260,6 +271,7 @@ macro_rules! impl_json_canonical {
                 use serde::{Serializer, de};
 
                 /// Serialize a G1 affine point.
+                #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
                 pub fn serialize<S: Serializer>(
                     p: &$curve::G1Affine,
                     ser: S,
@@ -268,6 +280,7 @@ macro_rules! impl_json_canonical {
                 }
 
                 /// Deserialize a G1 affine point with full validation.
+                #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
                 pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::G1Affine, D::Error>
                 where
                     D: de::Deserializer<'de>,
@@ -281,6 +294,7 @@ macro_rules! impl_json_canonical {
                 use serde::{Serializer, de};
 
                 /// Serialize a G1 affine point.
+                #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
                 pub fn serialize<S: Serializer>(
                     p: &$curve::G1Affine,
                     ser: S,
@@ -289,6 +303,7 @@ macro_rules! impl_json_canonical {
                 }
 
                 /// Deserialize a G1 affine point without validation.
+                #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
                 pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::G1Affine, D::Error>
                 where
                     D: de::Deserializer<'de>,
@@ -302,6 +317,7 @@ macro_rules! impl_json_canonical {
                 use serde::{Serializer, de};
 
                 /// Serialize a G2 affine point.
+                #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
                 pub fn serialize<S: Serializer>(
                     p: &$curve::G2Affine,
                     ser: S,
@@ -310,6 +326,7 @@ macro_rules! impl_json_canonical {
                 }
 
                 /// Deserialize a G2 affine point with full validation.
+                #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
                 pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::G2Affine, D::Error>
                 where
                     D: de::Deserializer<'de>,
@@ -323,6 +340,7 @@ macro_rules! impl_json_canonical {
                 use serde::{Serializer, de};
 
                 /// Serialize a G2 affine point.
+                #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
                 pub fn serialize<S: Serializer>(
                     p: &$curve::G2Affine,
                     ser: S,
@@ -331,6 +349,7 @@ macro_rules! impl_json_canonical {
                 }
 
                 /// Deserialize a G2 affine point without validation.
+                #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
                 pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::G2Affine, D::Error>
                 where
                     D: de::Deserializer<'de>,
@@ -344,6 +363,7 @@ macro_rules! impl_json_canonical {
                 use serde::{Serializer, de};
 
                 /// Serialize a GT element.
+                #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
                 pub fn serialize<S: Serializer>(
                     p: &$curve::Fq12,
                     ser: S,
@@ -352,6 +372,7 @@ macro_rules! impl_json_canonical {
                 }
 
                 /// Deserialize a GT element.
+                #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
                 pub fn deserialize<'de, D>(deserializer: D) -> Result<$curve::Fq12, D::Error>
                 where
                     D: de::Deserializer<'de>,
@@ -365,6 +386,7 @@ macro_rules! impl_json_canonical {
                 use serde::{Serializer, de};
 
                 /// Serialize a sequence of G1 affine points.
+                #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
                 pub fn serialize<S: Serializer>(
                     ps: &[$curve::G1Affine],
                     ser: S,
@@ -373,6 +395,7 @@ macro_rules! impl_json_canonical {
                 }
 
                 /// Deserialize a sequence of G1 affine points with full validation.
+                #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
                 pub fn deserialize<'de, D>(
                     deserializer: D,
                 ) -> Result<Vec<$curve::G1Affine>, D::Error>
@@ -388,6 +411,7 @@ macro_rules! impl_json_canonical {
                 use serde::{Serializer, de};
 
                 /// Serialize a sequence of G1 affine points.
+                #[doc = "\n# Errors\n\nReturns an error if the serializer fails."]
                 pub fn serialize<S: Serializer>(
                     ps: &[$curve::G1Affine],
                     ser: S,
@@ -396,6 +420,7 @@ macro_rules! impl_json_canonical {
                 }
 
                 /// Deserialize a sequence of G1 affine points without validation.
+                #[doc = "\n# Errors\n\nReturns an error if the input is malformed or fails validation."]
                 pub fn deserialize<'de, D>(
                     deserializer: D,
                 ) -> Result<Vec<$curve::G1Affine>, D::Error>
