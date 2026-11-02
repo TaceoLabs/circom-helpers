@@ -862,33 +862,18 @@ where
     where
         A: de::SeqAccess<'de>,
     {
-        let x = seq.next_element::<Vec<String>>()?.ok_or(de::Error::custom(
-            "expected G1 projective coordinates but x coordinate missing.".to_owned(),
+        let x = seq.next_element::<[String; 2]>()?.ok_or(de::Error::custom(
+            "expected G2 projective coordinates but x coordinate missing.".to_owned(),
         ))?;
-        let y = seq.next_element::<Vec<String>>()?.ok_or(de::Error::custom(
+        let y = seq.next_element::<[String; 2]>()?.ok_or(de::Error::custom(
             "expected G2 projective coordinates but y coordinate missing.".to_owned(),
         ))?;
-        let z = seq.next_element::<Vec<String>>()?.ok_or(de::Error::custom(
+        let z = seq.next_element::<[String; 2]>()?.ok_or(de::Error::custom(
             "expected G2 projective coordinates but z coordinate missing.".to_owned(),
         ))?;
         //check if there are no more elements
-        if seq.next_element::<String>()?.is_some() {
+        if seq.next_element::<de::IgnoredAny>()?.is_some() {
             Err(de::Error::invalid_length(4, &self))
-        } else if x.len() != 2 {
-            Err(de::Error::custom(format!(
-                "x coordinates need two field elements for G2, but got {}",
-                x.len()
-            )))
-        } else if y.len() != 2 {
-            Err(de::Error::custom(format!(
-                "y coordinates need two field elements for G2, but got {}",
-                y.len()
-            )))
-        } else if z.len() != 2 {
-            Err(de::Error::custom(format!(
-                "z coordinates need two field elements for G2, but got {}",
-                z.len()
-            )))
         } else {
             g2_from_strings_projective::<CHECK, _, _, _>(&x[0], &x[1], &y[0], &y[1], &z[0], &z[1])
                 .map_err(de::Error::custom)
@@ -1045,12 +1030,12 @@ impl<'de, const UNSIGNED: bool, F: PrimeField> de::Visitor<'de>
         A: de::SeqAccess<'de>,
     {
         use serde::de::Error;
-        let mut values = if let Some(size_hint) = seq.size_hint() {
-            Vec::with_capacity(size_hint)
-        } else {
-            Vec::new()
-        };
+        // never trust seq.size_hint(), it comes from the input
+        let mut values = Vec::with_capacity(self.size.unwrap_or(0));
         while let Some(s) = seq.next_element::<String>()? {
+            if self.size.is_some_and(|size| values.len() == size) {
+                return Err(A::Error::invalid_length(values.len() + 1, &self));
+            }
             values.push(parse_field_str_inner::<UNSIGNED, F>(&s).map_err(A::Error::custom)?);
         }
         Ok(values)
@@ -1084,68 +1069,49 @@ where
         A: de::SeqAccess<'de>,
     {
         let x = seq
-            .next_element::<Vec<Vec<String>>>()?
+            .next_element::<[[String; 2]; 3]>()?
             .ok_or(de::Error::custom(
                 "expected elements target group in {} as sequence of sequences",
             ))?;
         let y = seq
-            .next_element::<Vec<Vec<String>>>()?
+            .next_element::<[[String; 2]; 3]>()?
             .ok_or(de::Error::custom(
                 "expected elements target group in {} as sequence of sequences",
             ))?;
-        if x.len() != 3 || y.len() != 3 {
-            Err(de::Error::custom(
-                "need three elements for cubic extension field in {}",
-            ))
-        } else {
-            let c0 = cubic_extension_field_from_vec(x).map_err(de::Error::custom)?;
-            let c1 = cubic_extension_field_from_vec(y).map_err(de::Error::custom)?;
-            Ok(QuadExtField::new(c0, c1))
-        }
+        let c0 = cubic_extension_field_from_strings(&x).map_err(de::Error::custom)?;
+        let c1 = cubic_extension_field_from_strings(&y).map_err(de::Error::custom)?;
+        Ok(QuadExtField::new(c0, c1))
     }
 }
 
-/// Constructs a cubic extension field element from a nested vector of strings.
-///
-/// Expects a vector of three vectors, each containing two strings representing
-/// an Fq2 element. Returns an Fq6 element.
+/// Constructs a cubic extension field element (Fq6) from three Fq2 string pairs.
 #[inline]
-fn cubic_extension_field_from_vec<F, Fp2, Fp6>(
-    strings: Vec<Vec<String>>,
+fn cubic_extension_field_from_strings<F, Fp2, Fp6>(
+    strings: &[[String; 2]; 3],
 ) -> Result<CubicExtField<Fp6>, SerdeCompatError>
 where
     F: PrimeField,
     Fp2: QuadExtConfig<BaseField = F>,
     Fp6: CubicExtConfig<BaseField = QuadExtField<Fp2>>,
 {
-    if strings.len() == 3 {
-        let c0 = quadratic_extension_field_from_vec(&strings[0])?;
-        let c1 = quadratic_extension_field_from_vec(&strings[1])?;
-        let c2 = quadratic_extension_field_from_vec(&strings[2])?;
-        Ok(CubicExtField::new(c0, c1, c2))
-    } else {
-        Err(SerdeCompatError("expected cubic extension field"))
-    }
+    let c0 = quadratic_extension_field_from_strings(&strings[0])?;
+    let c1 = quadratic_extension_field_from_strings(&strings[1])?;
+    let c2 = quadratic_extension_field_from_strings(&strings[2])?;
+    Ok(CubicExtField::new(c0, c1, c2))
 }
 
-/// Constructs a quadratic extension field element from a slice of strings.
-///
-/// Expects exactly two strings representing the two components of an Fq2 element.
+/// Constructs a quadratic extension field element (Fq2) from two strings.
 #[inline]
-fn quadratic_extension_field_from_vec<F, Fp2>(
-    strings: &[String],
+fn quadratic_extension_field_from_strings<F, Fp2>(
+    strings: &[String; 2],
 ) -> Result<QuadExtField<Fp2>, SerdeCompatError>
 where
     F: PrimeField,
     Fp2: QuadExtConfig<BaseField = F>,
 {
-    if strings.len() == 2 {
-        let c0 = parse_field_str_inner_unsigned(&strings[0])?;
-        let c1 = parse_field_str_inner_unsigned(&strings[1])?;
-        Ok(QuadExtField::new(c0, c1))
-    } else {
-        Err(SerdeCompatError("expected quadratic extension field"))
-    }
+    let c0 = parse_field_str_inner_unsigned(&strings[0])?;
+    let c1 = parse_field_str_inner_unsigned(&strings[1])?;
+    Ok(QuadExtField::new(c0, c1))
 }
 
 impl<'de, const CHECK: bool, F, G1> de::Visitor<'de> for G1SeqVisitor<CHECK, F, G1>
@@ -1178,18 +1144,11 @@ where
         A: de::SeqAccess<'de>,
     {
         let mut values = vec![];
-        while let Some(point) = seq.next_element::<Vec<String>>()? {
-            //check if there are no more elements
-            if point.len() == 3 {
-                values.push(
-                    g1_from_strings_projective::<CHECK, _, _>(&point[0], &point[1], &point[2])
-                        .map_err(|_| {
-                            de::Error::custom("Invalid projective point on G1.".to_owned())
-                        })?,
-                );
-            } else {
-                return Err(de::Error::invalid_length(point.len(), &self));
-            }
+        while let Some(point) = seq.next_element::<[String; 3]>()? {
+            values.push(
+                g1_from_strings_projective::<CHECK, _, _>(&point[0], &point[1], &point[2])
+                    .map_err(|_| de::Error::custom("Invalid projective point on G1.".to_owned()))?,
+            );
         }
         Ok(values)
     }

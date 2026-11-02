@@ -591,6 +591,38 @@ mod bn254_tests {
     }
 
     #[test]
+    fn test_untrusted_seq_length_does_not_allocate() {
+        #[derive(Deserialize, Debug)]
+        #[allow(
+            dead_code,
+            reason = "we only need inner for deserialization - never really used"
+        )]
+        struct SeqWrapper {
+            #[serde(with = "crate::field_seq")]
+            inner: Vec<ark_bn254::Fr>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[allow(
+            dead_code,
+            reason = "we only need inner for deserialization - never really used"
+        )]
+        struct ArrayWrapper {
+            #[serde(deserialize_with = "crate::deserialize_f_array")]
+            inner: [ark_bn254::Fr; 3],
+        }
+
+        // CBOR {"inner": [<2^50 elements>]} with only the array header present
+        let mut buf = vec![0xA1, 0x65];
+        buf.extend_from_slice(b"inner");
+        buf.push(0x9B);
+        buf.extend_from_slice(&(1u64 << 50).to_be_bytes());
+
+        ciborium::from_reader::<SeqWrapper, _>(buf.as_slice()).expect_err("Should be an error");
+        ciborium::from_reader::<ArrayWrapper, _>(buf.as_slice()).expect_err("Should be an error");
+    }
+
+    #[test]
     fn test_deserialize_f_array_signed_binary_wrong_length() {
         #[derive(Serialize)]
         struct SeqWrapper {
@@ -1010,7 +1042,7 @@ mod babyjubjub_test {
         let json =
             format!(r#"{{"inner": [["{gen_x}", "{gen_y}", "{gen_x}"], ["{gen_x}", "{gen_y}"]]}}"#);
         let err = serde_json::from_str::<ArrayWrapper>(&json).expect_err("Should be an error");
-        assert!(err.to_string().contains("invalid length 3"));
+        assert!(err.to_string().contains("trailing characters"));
     }
 
     #[test]
