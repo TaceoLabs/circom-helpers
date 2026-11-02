@@ -124,6 +124,25 @@ pub(crate) mod tests {
         let cargo_manifest = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"));
         cargo_manifest.join("kats/plonk/bls12_381")
     }
+
+    /// Offset of the data of section `id` in a bin file (zkey, r1cs, wtns share the layout).
+    pub(crate) fn section_offset(bytes: &[u8], id: u32) -> usize {
+        let n_sections = u32::from_le_bytes(bytes[8..12].try_into().unwrap());
+        let mut pos = 12;
+        for _ in 0..n_sections {
+            let sec_id = u32::from_le_bytes(bytes[pos..pos + 4].try_into().unwrap());
+            let len = u64::from_le_bytes(bytes[pos + 4..pos + 12].try_into().unwrap());
+            if sec_id == id {
+                return pos + 12;
+            }
+            pos += 12 + usize::try_from(len).unwrap();
+        }
+        panic!("section {id} not found");
+    }
+
+    pub(crate) fn patch_u32(bytes: &mut [u8], offset: usize, value: u32) {
+        bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
 }
 
 #[cfg(test)]
