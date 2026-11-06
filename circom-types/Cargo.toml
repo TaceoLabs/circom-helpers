@@ -32,7 +32,7 @@ ark-groth16 = { workspace = true, optional = true }
 ark-poly = { workspace = true }
 ark-relations = { workspace = true, optional = true }
 ark-serde-compat = { package = "taceo-ark-serde-compat", path = "../ark-serde-compat", version = "0.6.2", default-features=false }
-groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.2", optional = true }
+groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.2", optional = true, default-features = false }
 ark-serialize = { workspace = true }
 ark-std = { workspace = true }
 byteorder = { workspace = true }
@@ -77,7 +77,7 @@ full-plonk = [
   "zkey"
 ]
 groth16 = []
-parallel = ["dep:rayon"]
+parallel = ["dep:rayon", "groth16?/parallel"]
 plonk = []
 proof = ["dep:ark-groth16"]
 public-input = []

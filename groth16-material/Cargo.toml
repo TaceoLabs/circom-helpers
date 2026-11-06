@@ -28,7 +28,7 @@ circom-types = { package = "taceo-circom-types", path = "../circom-types", versi
 ], default-features = false }
 circom-witness-rs = { workspace = true, optional = true }
 eyre = { workspace = true }
-groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.2" }
+groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.2", default-features = false }
 hex = { workspace = true, optional = true }
 postcard = { workspace = true, optional = true }
 rand = { workspace = true }
@@ -38,7 +38,7 @@ sha2 = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [features]
-default = ["circom"]
+default = ["circom", "parallel"]
 circom = [
   "dep:ark-serialize",
   "dep:circom-witness-rs",
@@ -48,5 +48,6 @@ circom = [
   "dep:sha2"
 ]
 full = ["circom"]
+parallel = ["groth16/parallel"]
 reqwest = ["dep:reqwest"]
 reqwest-blocking = ["reqwest/blocking"]

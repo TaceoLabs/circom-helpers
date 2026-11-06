@@ -19,11 +19,16 @@ name = "groth16"
 ark-algebra = { package = "taceo-ark-algebra", path = "../ark-algebra", version = "0.1.1" }
 ark-ec.workspace = true
 ark-ff.workspace = true
-ark-groth16 = { workspace = true, features = ["parallel"] }
+ark-groth16.workspace = true
 ark-relations.workspace = true
 eyre.workspace = true
 rayon.workspace = true
 tracing.workspace = true
+
+[features]
+default = ["parallel"]
+# Disable on targets that cannot spawn threads, such as wasm32-unknown-unknown.
+parallel = ["ark-groth16/parallel"]
 
 [dev-dependencies]
 ark-bls12-381.workspace = true
