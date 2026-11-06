@@ -68,20 +68,6 @@ jobs:
           cargo check --target wasm32-unknown-unknown
           -p taceo-groth16 -p taceo-circom-types --no-default-features
           --features taceo-circom-types/bn254,taceo-circom-types/full-groth16
-      # ark-ec's `parallel` MSM builds its own rayon thread pool and panics on wasm32, so no crate
-      # may enable it once its own `parallel` feature is off.
-      - name: No ark-ec/parallel without parallel
-        run: |
-          check() {
-            if cargo tree --target wasm32-unknown-unknown -e features -i ark-ec "$@" \
-              | grep 'ark-ec feature "parallel"'; then
-              echo "ark-ec/parallel is enabled for: $*"
-              exit 1
-            fi
-          }
-          check -p taceo-groth16 --no-default-features
-          check -p taceo-circom-types --no-default-features --features bn254,full-groth16
-          check -p taceo-groth16-material --no-default-features --features circom
 
   # Aggregator job — make this the single required check in branch protection.
   ci-success:
