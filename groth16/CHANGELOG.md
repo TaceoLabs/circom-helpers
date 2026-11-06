@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-v0.2.2...taceo-groth16-v0.2.3)
+
+### 🐛 Bug Fixes
+
+
+- *(groth16)* Make the arkworks `parallel` features optional ([#122](https://github.com/TaceoLabs/circom-helpers/pull/122)) - ([6415d68](https://github.com/TaceoLabs/circom-helpers/commit/6415d68e3cf0aa0fd7c578fcc7608e9aaf3751c9))
+
+
 ## [0.2.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-v0.2.1...taceo-groth16-v0.2.2)
 
 ### ⚙️ Miscellaneous Tasks

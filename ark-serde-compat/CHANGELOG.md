@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.6.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.6.2...taceo-ark-serde-compat-v0.6.3)
+
+### 🧪 Testing
+
+
+- Add golden kats to assert no serialization drift ([#116](https://github.com/TaceoLabs/circom-helpers/pull/116)) - ([c5c0245](https://github.com/TaceoLabs/circom-helpers/commit/c5c0245330be26763fbf8b50312c46f4e76502ff))
+
+
 ## [0.6.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.6.1...taceo-ark-serde-compat-v0.6.2)
 
 ### 🐛 Bug Fixes
