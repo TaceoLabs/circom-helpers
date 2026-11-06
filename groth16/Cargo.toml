@@ -27,10 +27,7 @@ tracing.workspace = true
 
 [features]
 default = ["parallel"]
-# Enables the arkworks `parallel` features. ark-ec 0.6 then builds its own rayon thread pool in
-# some MSMs and panics where threads cannot be spawned, e.g. on wasm32-unknown-unknown. The
-# prover's own MSMs, FFTs and witness maps always use rayon, which runs on the calling thread
-# when no threads are available.
+# Disable on targets that cannot spawn threads, such as wasm32-unknown-unknown.
 parallel = ["ark-groth16/parallel"]
 
 [dev-dependencies]
