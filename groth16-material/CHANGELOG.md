@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.4.4](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.4.3...taceo-groth16-material-v0.4.4)
+
+### 🐛 Bug Fixes
+
+
+- *(groth16)* Make the arkworks `parallel` features optional ([#122](https://github.com/TaceoLabs/circom-helpers/pull/122)) - ([6415d68](https://github.com/TaceoLabs/circom-helpers/commit/6415d68e3cf0aa0fd7c578fcc7608e9aaf3751c9))
+- *(groth16-material)* Forward `parallel` to circom-types ([#123](https://github.com/TaceoLabs/circom-helpers/pull/123)) - ([3ceff83](https://github.com/TaceoLabs/circom-helpers/commit/3ceff836db4403c021b226831cb9618921241b74))
+
+
 ## [0.4.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-material-v0.4.2...taceo-groth16-material-v0.4.3)
 
 ### ⚙️ Miscellaneous Tasks
