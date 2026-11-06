@@ -48,6 +48,6 @@ circom = [
   "dep:sha2"
 ]
 full = ["circom"]
-parallel = ["groth16/parallel"]
+parallel = ["groth16/parallel", "circom-types/parallel"]
 reqwest = ["dep:reqwest"]
 reqwest-blocking = ["reqwest/blocking"]
