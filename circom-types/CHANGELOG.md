@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.4]
+
+### 🐛 Bug Fixes
+
+
+- *(groth16)* Make the arkworks `parallel` features optional ([#122](https://github.com/TaceoLabs/circom-helpers/pull/122)) - ([6415d68](https://github.com/TaceoLabs/circom-helpers/commit/6415d68e3cf0aa0fd7c578fcc7608e9aaf3751c9))
+
+
 ## [0.3.4](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.3.3...taceo-circom-types-v0.3.4)
 
 ### 🐛 Bug Fixes
