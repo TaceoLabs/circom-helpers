@@ -176,7 +176,8 @@ impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
 
         reader.seek(SeekFrom::Start(*constraint_offset?))?;
 
-        let constraints = read_constraints::<&mut R, P>(&mut reader, n_constraints, field_size)?;
+        let constraints =
+            read_constraints::<&mut R, P>(&mut reader, n_constraints, num_variables, field_size)?;
 
         let wire2label_offset = sec_offsets.get(&wire2label_type).ok_or_else(|| {
             Error::new(
@@ -220,14 +221,22 @@ impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
 
 fn read_constraint_vec<R: Read, P: Pairing>(
     mut reader: R,
+    n_wires: usize,
     field_size: usize,
 ) -> Result<ConstraintVec<P>> {
     let n_vec = reader.read_u32::<LittleEndian>()? as usize;
     // no preallocation, the count comes from the file
     let mut vec = Vec::new();
     for _ in 0..n_vec {
+        let wire = reader.read_u32::<LittleEndian>()? as usize;
+        if wire >= n_wires {
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "wire index out of range",
+            ))?;
+        }
         vec.push((
-            reader.read_u32::<LittleEndian>()? as usize,
+            wire,
             reader_utils::prime_field_from_reader(&mut reader, field_size)?,
         ));
     }
@@ -237,15 +246,16 @@ fn read_constraint_vec<R: Read, P: Pairing>(
 fn read_constraints<R: Read, P: Pairing>(
     mut reader: R,
     n_constraints: usize,
+    n_wires: usize,
     field_size: usize,
 ) -> Result<Vec<Constraints<P>>> {
     // todo check section size
     let mut vec = Vec::new();
     for _ in 0..n_constraints {
         vec.push((
-            read_constraint_vec::<_, P>(&mut reader, field_size)?,
-            read_constraint_vec::<_, P>(&mut reader, field_size)?,
-            read_constraint_vec::<_, P>(&mut reader, field_size)?,
+            read_constraint_vec::<_, P>(&mut reader, n_wires, field_size)?,
+            read_constraint_vec::<_, P>(&mut reader, n_wires, field_size)?,
+            read_constraint_vec::<_, P>(&mut reader, n_wires, field_size)?,
         ));
     }
     Ok(vec)
@@ -387,6 +397,17 @@ mod malformed_bn254_tests {
             patch_u32(b, s, u32::MAX);
         })
         .expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_out_of_range_wire() {
+        // the constraint section starts with the length of the first vec, then its first wire
+        let err = parse_patched(|b| {
+            let s = section_offset(b, 2);
+            patch_u32(b, s + 4, u32::MAX);
+        })
+        .expect_err("should fail");
+        assert!(err.to_string().contains("wire index out of range"), "{err}");
     }
 
     #[test]

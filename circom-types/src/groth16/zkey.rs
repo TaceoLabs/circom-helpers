@@ -168,6 +168,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
                 matrices = Some(Self::constraint_matrices(
                     domain_size,
                     n_public,
+                    n_vars,
                     matrices_section,
                 ))
             });
@@ -248,6 +249,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
     fn constraint_matrices(
         domain_size: usize,
         n_public: usize,
+        n_vars: usize,
         mut matrices_section: Cursor<Vec<u8>>,
     ) -> ZkeyParserResult<ConstraintMatrixAB<P::ScalarField>> {
         // this function (an all following uses) assumes that values are encoded in little-endian
@@ -272,6 +274,11 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
 
             let value = P::fr_from_reader_for_groth16_zkey(&mut matrices_section)?;
             max_constraint_index = std::cmp::max(max_constraint_index, constraint);
+            if u32_to_usize!(signal) >= n_vars {
+                return Err(ZkeyParserError::CorruptedBinFile(format!(
+                    "signal index {signal} out of range"
+                )));
+            }
             matrices
                 .get_mut(u32_to_usize!(matrix))
                 .and_then(|m| m.get_mut(u32_to_usize!(constraint)))
@@ -844,7 +851,7 @@ mod malformed_bn254_tests {
     #[test]
     fn rejects_out_of_range_matrix_entries() {
         // section 4 starts with num_coeffs, then (matrix, constraint, signal, value) entries
-        for (field, value) in [(4, 7), (8, u32::MAX)] {
+        for (field, value) in [(4, 7), (8, u32::MAX), (12, u32::MAX)] {
             parse_patched(|b| {
                 let s = section_offset(b, 4);
                 patch_u32(b, s + field, value);
