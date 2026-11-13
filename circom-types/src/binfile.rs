@@ -117,7 +117,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> BinFile<P> {
     }
 }
 
-/// Checks that a section holds at least `count` elements of `elem_size` bytes. Used to validate
+/// Checks that a section holds exactly `count` elements of `elem_size` bytes. Used to validate
 /// counts from the header before allocating based on them.
 pub(crate) fn check_section_len(
     section_len: usize,
@@ -126,9 +126,9 @@ pub(crate) fn check_section_len(
     name: &str,
 ) -> ZkeyParserResult<()> {
     match count.checked_mul(elem_size) {
-        Some(expected) if section_len >= expected => Ok(()),
+        Some(expected) if section_len == expected => Ok(()),
         _ => Err(ZkeyParserError::CorruptedBinFile(format!(
-            "section {name} ({section_len} bytes) is too short for {count} elements"
+            "section {name} ({section_len} bytes) does not hold exactly {count} elements"
         ))),
     }
 }

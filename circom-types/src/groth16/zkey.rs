@@ -800,6 +800,16 @@ mod malformed_bn254_tests {
     }
 
     #[test]
+    fn rejects_oversized_sections() {
+        parse_patched(|b| {
+            let h = section_offset(b, 2);
+            patch_u32(b, h + N_VARS, 3);
+        })
+        .err()
+        .expect("should fail");
+    }
+
+    #[test]
     fn rejects_huge_domain_size() {
         parse_patched(|b| {
             let h = section_offset(b, 2);
