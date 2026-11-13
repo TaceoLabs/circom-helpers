@@ -96,6 +96,11 @@ impl<P: Pairing + CircomArkworksPairingBridge> BinFile<P> {
                 )));
             }
         }
+        if reader.read(&mut [0u8])? != 0 {
+            return Err(ZkeyParserError::CorruptedBinFile(
+                "trailing bytes after last section".to_owned(),
+            ));
+        }
         tracing::debug!("successfully read bin file!");
         Ok(Self {
             ftype,
@@ -160,6 +165,14 @@ mod tests {
     #[test]
     fn rejects_section_longer_than_file() {
         let bytes = bin_file(1, &[(1, 1 << 40)]);
+        BinFile::<Bn254>::new(&mut bytes.as_slice()).expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_trailing_bytes() {
+        let mut bytes = bin_file(1, &[(1, 0)]);
+        BinFile::<Bn254>::new(&mut bytes.as_slice()).expect("valid");
+        bytes.push(0);
         BinFile::<Bn254>::new(&mut bytes.as_slice()).expect_err("should fail");
     }
 
