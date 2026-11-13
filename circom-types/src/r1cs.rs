@@ -121,6 +121,12 @@ impl<P: Pairing + CircomArkworksPairingBridge> R1CS<P> {
                 .map_err(|_| Error::new(ErrorKind::InvalidData, "section size too large"))?;
             reader.seek(SeekFrom::Current(skip))?;
         }
+        if reader.read(&mut [0u8])? != 0 {
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "trailing bytes after last section",
+            ))?;
+        }
 
         let header_type = 1;
         let constraint_type = 2;
@@ -397,6 +403,13 @@ mod malformed_bn254_tests {
             patch_u32(b, s, u32::MAX);
         })
         .expect_err("should fail");
+    }
+
+    #[test]
+    fn rejects_trailing_bytes() {
+        let mut bytes = std::fs::read(groth16_bn254_kats().join("circuit.r1cs")).unwrap();
+        bytes.push(0);
+        R1CS::<Bn254>::from_reader(Cursor::new(bytes)).expect_err("should fail");
     }
 
     #[test]
