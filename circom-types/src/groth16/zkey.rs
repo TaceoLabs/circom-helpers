@@ -832,20 +832,21 @@ mod malformed_bn254_tests {
     }
 
     #[test]
-    fn rejects_overflowing_vec_len() {
-        let buf = [0u8; 0];
-        <Bn254 as CircomArkworksPairingBridge>::g1_vec_from_reader(
-            &buf[..],
-            usize::MAX,
-            CheckElement::No,
-        )
-        .expect_err("should fail");
-        <Bn254 as CircomArkworksPairingBridge>::g2_vec_from_reader(
-            &buf[..],
-            usize::MAX,
-            CheckElement::No,
-        )
-        .expect_err("should fail");
+    fn rejects_vec_len_larger_than_input() {
+        for num in [usize::MAX, usize::MAX / 128] {
+            <Bn254 as CircomArkworksPairingBridge>::g1_vec_from_reader(
+                &[0u8; 64][..],
+                num,
+                CheckElement::No,
+            )
+            .expect_err("should fail");
+            <Bn254 as CircomArkworksPairingBridge>::g2_vec_from_reader(
+                &[0u8; 128][..],
+                num,
+                CheckElement::No,
+            )
+            .expect_err("should fail");
+        }
     }
 
     #[test]

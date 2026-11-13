@@ -145,6 +145,19 @@ macro_rules! impl_serde_for_curve {
     };
 }
 
+/// Reads `num` elements of `size` bytes without allocating more than the reader provides.
+fn read_elements(reader: impl Read, size: usize, num: usize) -> SerResult<Vec<u8>> {
+    let len = size
+        .checked_mul(num)
+        .ok_or(SerializationError::InvalidData)?;
+    let mut buf = Vec::new();
+    reader.take(len as u64).read_to_end(&mut buf)?;
+    if buf.len() != len {
+        return Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof).into());
+    }
+    Ok(buf)
+}
+
 /// Bridge trait to serialize and deserialize pairings contained in Circom files into and from [`ark_ec::pairing::Pairing`] representation
 pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     /// Size of compressed element of G1 in bytes
@@ -177,18 +190,12 @@ pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     /// Deserializes element of G2 from reader where the element is already in montgomery form (no montgomery reduction performed)
     fn g2_from_reader(reader: impl Read, check: CheckElement) -> SerResult<Self::G2Affine>;
     /// Deserializes vec of G1 from reader where the elements are already in montgomery form (no montgomery reduction performed)
-    ///
-    /// Allocates `num` elements up front, so `num` must be validated against the size of the input by the caller.
     fn g1_vec_from_reader(
-        mut reader: impl Read,
+        reader: impl Read,
         num: usize,
         check: CheckElement,
     ) -> SerResult<Vec<Self::G1Affine>> {
-        let len = Self::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED
-            .checked_mul(num)
-            .ok_or(SerializationError::InvalidData)?;
-        let mut buf = vec![0u8; len];
-        reader.read_exact(&mut buf)?;
+        let buf = read_elements(reader, Self::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED, num)?;
         #[cfg(feature = "parallel")]
         use rayon::prelude::*;
 
@@ -208,15 +215,11 @@ pub trait CircomArkworksPairingBridge: Pairing + CanonicalJsonSerialize {
     /// Deserializes vec of G2 from reader where the elements are already in montgomery form (no montgomery reduction performed)
     /// The default implementation runs multithreaded using rayon
     fn g2_vec_from_reader(
-        mut reader: impl Read,
+        reader: impl Read,
         num: usize,
         check: CheckElement,
     ) -> SerResult<Vec<Self::G2Affine>> {
-        let len = Self::G2_SERIALIZED_BYTE_SIZE_UNCOMPRESSED
-            .checked_mul(num)
-            .ok_or(SerializationError::InvalidData)?;
-        let mut buf = vec![0u8; len];
-        reader.read_exact(&mut buf)?;
+        let buf = read_elements(reader, Self::G2_SERIALIZED_BYTE_SIZE_UNCOMPRESSED, num)?;
 
         #[cfg(feature = "parallel")]
         use rayon::prelude::*;
