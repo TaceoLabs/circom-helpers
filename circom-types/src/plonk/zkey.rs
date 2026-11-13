@@ -143,8 +143,15 @@ pub struct VerifyingKey<P: Pairing> {
     pub s2: P::G1Affine,
     /// The evaluation of [`Zkey::s3_poly`] with [`Zkey::p_tau`]
     pub s3: P::G1Affine,
-    /// x_2
+    /// `x_2`
     pub x_2: P::G2Affine,
+}
+
+fn check_section_lens(sections: &[(usize, usize, usize, &str)]) -> ZkeyParserResult<()> {
+    for &(len, count, element_size, name) in sections {
+        check_section_len(len, count, element_size, name)?;
+    }
+    Ok(())
 }
 
 impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
@@ -159,12 +166,19 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
     /// only with care.
     ///
     /// See [`CheckElement`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a `u32` does not fit into `usize`, which can only happen on targets narrower than 32 bits.
     pub fn from_reader<R: Read>(mut reader: R, check: CheckElement) -> ZkeyParserResult<Self> {
         let mut binfile = BinFile::<P>::new(&mut reader)?;
 
         tracing::debug!("start transforming bin file into zkey...");
         let header = PlonkHeader::<P>::read(&mut binfile.take_section(2)?)?;
-        let n_vars = header.n_vars;
         let n_additions = header.n_additions;
         let n_constraints = header.n_constraints;
         let n_public = header.n_public;
@@ -176,70 +190,53 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
             .checked_mul(5)
             .and_then(|v| v.checked_mul(n8r))
             .ok_or_else(overflow)?;
-        //the sigmas are in the same section - so we split it here in separate chunks
-        let sigma_section_size = poly_len;
 
         let add_section = binfile.take_section(3)?;
         let a_section = binfile.take_section(4)?;
         let b_section = binfile.take_section(5)?;
         let c_section = binfile.take_section(6)?;
-        let qm_section = binfile.take_section(7)?;
-        let ql_section = binfile.take_section(8)?;
-        let qr_section = binfile.take_section(9)?;
-        let q0_section = binfile.take_section(10)?;
-        let qc_section = binfile.take_section(11)?;
+        let mul_section = binfile.take_section(7)?;
+        let left_section = binfile.take_section(8)?;
+        let right_section = binfile.take_section(9)?;
+        let out_section = binfile.take_section(10)?;
+        let const_section = binfile.take_section(11)?;
         let sigma_sections = binfile.take_section_raw(12)?;
         let l_section = binfile.take_section(13)?;
         let t_section = binfile.take_section(14)?;
 
         // validate the counts from the header against the section sizes before allocating
-        check_section_len(
-            add_section.get_ref().len(),
-            n_additions,
-            8 + 2 * n8r,
-            "additions",
-        )?;
-        for (section, name) in [(&a_section, "a"), (&b_section, "b"), (&c_section, "c")] {
-            check_section_len(section.get_ref().len(), n_constraints, 4, name)?;
-        }
-        for (section, name) in [
-            (&qm_section, "qm"),
-            (&ql_section, "ql"),
-            (&qr_section, "qr"),
-            (&q0_section, "qo"),
-            (&qc_section, "qc"),
-        ] {
-            check_section_len(section.get_ref().len(), 1, poly_len, name)?;
-        }
-        check_section_len(sigma_sections.len(), 3, sigma_section_size, "sigma")?;
-        // snarkjs writes at least one lagrange polynomial
-        check_section_len(
-            l_section.get_ref().len(),
-            n_public.max(1),
-            poly_len,
-            "lagrange",
-        )?;
         let n_taus = domain_size.checked_add(6).ok_or_else(overflow)?;
-        check_section_len(
-            t_section.get_ref().len(),
-            n_taus,
-            P::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED,
-            "taus",
-        )?;
-        let sigma1_section = Cursor::new(&sigma_sections[..sigma_section_size]);
-        let sigma2_section =
-            Cursor::new(&sigma_sections[sigma_section_size..sigma_section_size * 2]);
-        let sigma3_section = Cursor::new(&sigma_sections[sigma_section_size * 2..]);
+        let len = |section: &Cursor<Vec<u8>>| section.get_ref().len();
+        let g1_size = P::G1_SERIALIZED_BYTE_SIZE_UNCOMPRESSED;
+        check_section_lens(&[
+            (len(&add_section), n_additions, 8 + 2 * n8r, "additions"),
+            (len(&a_section), n_constraints, 4, "a"),
+            (len(&b_section), n_constraints, 4, "b"),
+            (len(&c_section), n_constraints, 4, "c"),
+            (len(&mul_section), 1, poly_len, "qm"),
+            (len(&left_section), 1, poly_len, "ql"),
+            (len(&right_section), 1, poly_len, "qr"),
+            (len(&out_section), 1, poly_len, "qo"),
+            (len(&const_section), 1, poly_len, "qc"),
+            // the sigmas share a section, split into three chunks below
+            (sigma_sections.len(), 3, poly_len, "sigma"),
+            // snarkjs writes at least one lagrange polynomial
+            (len(&l_section), n_public.max(1), poly_len, "lagrange"),
+            (len(&t_section), n_taus, g1_size, "taus"),
+        ])?;
+        let sigma1_section = Cursor::new(&sigma_sections[..poly_len]);
+        let sigma2_section = Cursor::new(&sigma_sections[poly_len..poly_len * 2]);
+        let sigma3_section = Cursor::new(&sigma_sections[poly_len * 2..]);
 
         let mut additions = None;
         let mut map_a = None;
         let mut map_b = None;
         let mut map_c = None;
-        let mut qm = None;
-        let mut ql = None;
-        let mut qr = None;
-        let mut q0 = None;
-        let mut qc = None;
+        let mut mul = None;
+        let mut left = None;
+        let mut right = None;
+        let mut out = None;
+        let mut constant = None;
         let mut sigma1 = None;
         let mut sigma2 = None;
         let mut sigma3 = None;
@@ -251,11 +248,11 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
             s.spawn(|| map_a = Some(Self::id_map(n_constraints, a_section)));
             s.spawn(|| map_b = Some(Self::id_map(n_constraints, b_section)));
             s.spawn(|| map_c = Some(Self::id_map(n_constraints, c_section)));
-            s.spawn(|| qm = Some(Self::evaluations(domain_size, qm_section)));
-            s.spawn(|| ql = Some(Self::evaluations(domain_size, ql_section)));
-            s.spawn(|| qr = Some(Self::evaluations(domain_size, qr_section)));
-            s.spawn(|| q0 = Some(Self::evaluations(domain_size, q0_section)));
-            s.spawn(|| qc = Some(Self::evaluations(domain_size, qc_section)));
+            s.spawn(|| mul = Some(Self::evaluations(domain_size, mul_section)));
+            s.spawn(|| left = Some(Self::evaluations(domain_size, left_section)));
+            s.spawn(|| right = Some(Self::evaluations(domain_size, right_section)));
+            s.spawn(|| out = Some(Self::evaluations(domain_size, out_section)));
+            s.spawn(|| constant = Some(Self::evaluations(domain_size, const_section)));
             s.spawn(|| sigma1 = Some(Self::evaluations(domain_size, sigma1_section)));
             s.spawn(|| sigma2 = Some(Self::evaluations(domain_size, sigma2_section)));
             s.spawn(|| sigma3 = Some(Self::evaluations(domain_size, sigma3_section)));
@@ -264,29 +261,28 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
         });
         tracing::debug!("we are done with parsing sections!");
         Ok(Self {
-            n_vars,
+            n_vars: header.n_vars,
             n_public,
             domain_size,
             pow: header.power,
             n_additions,
             n_constraints,
             verifying_key: header.verifying_key,
-            //we unwrap all elements here, as we know they have to be Some.
-            //Even on the error case, we then have a Some value
-            additions: additions.unwrap()?,
-            map_a: map_a.unwrap()?,
-            map_b: map_b.unwrap()?,
-            map_c: map_c.unwrap()?,
-            qm_poly: qm.unwrap()?,
-            ql_poly: ql.unwrap()?,
-            qr_poly: qr.unwrap()?,
-            qo_poly: q0.unwrap()?,
-            qc_poly: qc.unwrap()?,
-            s1_poly: sigma1.unwrap()?,
-            s2_poly: sigma2.unwrap()?,
-            s3_poly: sigma3.unwrap()?,
-            lagrange: lagrange.unwrap()?,
-            p_tau: p_tau.unwrap()?,
+            // every slot is set by the scope above, even on the error path
+            additions: additions.expect("slot is set by the scope")?,
+            map_a: map_a.expect("slot is set by the scope")?,
+            map_b: map_b.expect("slot is set by the scope")?,
+            map_c: map_c.expect("slot is set by the scope")?,
+            qm_poly: mul.expect("slot is set by the scope")?,
+            ql_poly: left.expect("slot is set by the scope")?,
+            qr_poly: right.expect("slot is set by the scope")?,
+            qo_poly: out.expect("slot is set by the scope")?,
+            qc_poly: constant.expect("slot is set by the scope")?,
+            s1_poly: sigma1.expect("slot is set by the scope")?,
+            s2_poly: sigma2.expect("slot is set by the scope")?,
+            s3_poly: sigma3.expect("slot is set by the scope")?,
+            lagrange: lagrange.expect("slot is set by the scope")?,
+            p_tau: p_tau.expect("slot is set by the scope")?,
         })
     }
 
@@ -305,7 +301,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
                 signal_id2,
                 factor1,
                 factor2,
-            })
+            });
         }
         Ok(additions)
     }
@@ -402,29 +398,35 @@ struct PlonkHeader<P: Pairing> {
 }
 
 impl<P: Pairing + CircomArkworksPairingBridge> PlonkHeader<P> {
-    fn read<R: Read>(mut reader: &mut R) -> ZkeyParserResult<Self> {
-        let n8q = u32::deserialize_uncompressed(&mut reader)?;
+    fn read<R: Read>(mut reader: R) -> ZkeyParserResult<Self> {
+        let base_bytes = u32::deserialize_uncompressed(&mut reader)?;
         //modulus of BaseField
         let q = <P::BaseField as PrimeField>::BigInt::deserialize_uncompressed(&mut reader)?;
-        let expected_n8q = P::BaseField::MODULUS_BIT_SIZE.div_ceil(8);
-        tracing::debug!("base field byte size: {n8q}");
-        if n8q != expected_n8q {
-            return Err(ZkeyParserError::UnexpectedByteSize(expected_n8q, n8q));
+        let expected_base_bytes = P::BaseField::MODULUS_BIT_SIZE.div_ceil(8);
+        tracing::debug!("base field byte size: {base_bytes}");
+        if base_bytes != expected_base_bytes {
+            return Err(ZkeyParserError::UnexpectedByteSize(
+                expected_base_bytes,
+                base_bytes,
+            ));
         }
         let modulus = <P::BaseField as PrimeField>::MODULUS;
         if q != modulus {
             return Err(ZkeyParserError::InvalidPrimeInHeader);
         }
-        let n8r = u32::deserialize_uncompressed(&mut reader)?;
+        let scalar_bytes = u32::deserialize_uncompressed(&mut reader)?;
         //modulus of ScalarField
         let r = <P::ScalarField as PrimeField>::BigInt::deserialize_uncompressed(&mut reader)?;
-        tracing::debug!("scalar field byte size: {n8r}");
-        let expected_n8r = P::ScalarField::MODULUS_BIT_SIZE.div_ceil(8);
-        if n8r != expected_n8r {
-            return Err(ZkeyParserError::UnexpectedByteSize(expected_n8r, n8r));
+        tracing::debug!("scalar field byte size: {scalar_bytes}");
+        let expected_scalar_bytes = P::ScalarField::MODULUS_BIT_SIZE.div_ceil(8);
+        if scalar_bytes != expected_scalar_bytes {
+            return Err(ZkeyParserError::UnexpectedByteSize(
+                expected_scalar_bytes,
+                scalar_bytes,
+            ));
         }
 
-        let n8r = usize::try_from(n8r).expect("works after check");
+        let scalar_bytes = usize::try_from(scalar_bytes).expect("works after check");
         let modulus = <P::ScalarField as PrimeField>::MODULUS;
         if r != modulus {
             return Err(ZkeyParserError::InvalidPrimeInHeader);
@@ -439,7 +441,7 @@ impl<P: Pairing + CircomArkworksPairingBridge> PlonkHeader<P> {
         if domain_size.is_power_of_two() {
             tracing::debug!("read header done!");
             Ok(Self {
-                n8r,
+                n8r: scalar_bytes,
                 n_vars: u32_to_usize!(n_vars),
                 n_public: u32_to_usize!(n_public),
                 domain_size: u32_to_usize!(domain_size),
@@ -502,8 +504,8 @@ mod malformed_bn254_tests {
         bytes
     }
 
-    fn parse(bytes: Vec<u8>) -> ZkeyParserResult<Zkey<Bn254>> {
-        Zkey::<Bn254>::from_reader(bytes.as_slice(), CheckElement::No)
+    fn parse(bytes: &[u8]) -> ZkeyParserResult<Zkey<Bn254>> {
+        Zkey::<Bn254>::from_reader(bytes, CheckElement::No)
     }
 
     // 3 sigma polynomials with domain size 1: coefficients + 4x evaluations, 32 bytes each
@@ -511,28 +513,28 @@ mod malformed_bn254_tests {
 
     #[test]
     fn rejects_huge_domain_size() {
-        parse(zkey_bytes(1 << 31, 0, 0, 0, 0))
+        parse(&zkey_bytes(1 << 31, 0, 0, 0, 0))
             .err()
             .expect("should fail");
     }
 
     #[test]
     fn rejects_huge_n_additions() {
-        parse(zkey_bytes(1, u32::MAX, 0, 0, SIGMA_LEN_DOMAIN_1))
+        parse(&zkey_bytes(1, u32::MAX, 0, 0, SIGMA_LEN_DOMAIN_1))
             .err()
             .expect("should fail");
     }
 
     #[test]
     fn rejects_huge_n_constraints() {
-        parse(zkey_bytes(1, 0, u32::MAX, 0, SIGMA_LEN_DOMAIN_1))
+        parse(&zkey_bytes(1, 0, u32::MAX, 0, SIGMA_LEN_DOMAIN_1))
             .err()
             .expect("should fail");
     }
 
     #[test]
     fn rejects_huge_n_public() {
-        parse(zkey_bytes(1, 0, 0, u32::MAX, SIGMA_LEN_DOMAIN_1))
+        parse(&zkey_bytes(1, 0, 0, u32::MAX, SIGMA_LEN_DOMAIN_1))
             .err()
             .expect("should fail");
     }

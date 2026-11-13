@@ -59,9 +59,11 @@ pub trait ProofInput {
     fn prepare_input(&self) -> HashMap<String, Vec<U256>>;
 }
 
-impl ProofInput for HashMap<String, Vec<U256>> {
+impl<S: std::hash::BuildHasher> ProofInput for HashMap<String, Vec<U256>, S> {
     fn prepare_input(&self) -> HashMap<String, Vec<U256>> {
-        self.to_owned()
+        self.iter()
+            .map(|(name, values)| (name.clone(), values.clone()))
+            .collect()
     }
 }
 
@@ -183,35 +185,41 @@ impl CircomGroth16MaterialBuilder {
     /// - `fingerprint_zkey`: No fingerprint verification of the Zkey.
     /// - `fingerprint_graph`: No fingerprint verification of the graph.
     /// - `bbfs`: No black-box functions.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Sets the compression mode for deserializing the `.zkey` file. See [ark_serialize::Compress] for details.
+    /// Sets the compression mode for deserializing the `.zkey` file. See [`ark_serialize::Compress`] for details.
+    #[must_use]
     pub fn compress(mut self, compress: Compress) -> Self {
         self.compress = compress;
         self
     }
 
-    /// Sets the validation mode for deserializing the `.zkey` file. See [ark_serialize::Validate] for details.
+    /// Sets the validation mode for deserializing the `.zkey` file. See [`ark_serialize::Validate`] for details.
+    #[must_use]
     pub fn validate(mut self, validate: Validate) -> Self {
         self.validate = validate;
         self
     }
 
     /// Sets the expected SHA-256 fingerprint for the `.zkey` file. If provided, the fingerprint will be verified during loading.
+    #[must_use]
     pub fn fingerprint_zkey(mut self, fingerprint_zkey: String) -> Self {
         self.fingerprint_zkey = Some(fingerprint_zkey);
         self
     }
 
     /// Sets the expected SHA-256 fingerprint for the graph file. If provided, the fingerprint will be verified during loading.
+    #[must_use]
     pub fn fingerprint_graph(mut self, fingerprint_graph: String) -> Self {
         self.fingerprint_graph = Some(fingerprint_graph);
         self
     }
 
-    /// Adds custom black-box functions for witness extension. See [circom_witness_rs::BlackBoxFunction] for details.
+    /// Adds custom black-box functions for witness extension. See [`circom_witness_rs::BlackBoxFunction`] for details.
+    #[must_use]
     pub fn add_bbfs(mut self, bbfs: HashMap<String, BlackBoxFunction>) -> Self {
         self.bbfs.extend(bbfs);
         self
@@ -225,6 +233,7 @@ impl CircomGroth16MaterialBuilder {
     ///     return in!=0 ? 1/in : 0;
     /// }
     /// ```
+    #[must_use]
     pub fn bbf_inv(mut self) -> Self {
         self.bbfs.insert(
             "bbf_inv".to_string(),
@@ -247,6 +256,7 @@ impl CircomGroth16MaterialBuilder {
     ///     return in!=0 ? 1/in : 0;
     /// }
     /// ```
+    #[must_use]
     pub fn bbf_legendre(mut self) -> Self {
         self.bbfs.insert(
             "bbf_legendre".to_string(),
@@ -263,6 +273,7 @@ impl CircomGroth16MaterialBuilder {
     }
 
     /// Adds a black-box function `bbf_sqrt_unchecked` for computing the square root of a field element.
+    #[must_use]
     pub fn bbf_sqrt_unchecked(mut self) -> Self {
         self.bbfs.insert(
             "bbf_sqrt_unchecked".to_string(),
@@ -285,6 +296,7 @@ impl CircomGroth16MaterialBuilder {
     ///   }
     /// }
     /// ```
+    #[must_use]
     pub fn bbf_sqrt_input(mut self) -> Self {
         self.bbfs.insert(
             "bbf_sqrt_input".to_string(),
@@ -296,10 +308,10 @@ impl CircomGroth16MaterialBuilder {
                 //         return na;
                 //     }
                 // }
-                if args[0] != -ark_bn254::Fr::ONE {
-                    args[1]
-                } else {
+                if args[0] == -ark_bn254::Fr::ONE {
                     args[2]
+                } else {
+                    args[1]
                 }
             }),
         );
@@ -314,6 +326,7 @@ impl CircomGroth16MaterialBuilder {
     ///     return (in >> i) & 1;
     /// }
     /// ```
+    #[must_use]
     pub fn bbf_num_2_bits_helper(mut self) -> Self {
         self.bbfs.insert(
             "bbf_num_2_bits_helper".to_string(),
@@ -324,13 +337,19 @@ impl CircomGroth16MaterialBuilder {
                 let a: U256 = args[0].into();
                 let b: U256 = args[1].into();
                 let ls_limb = b.as_limbs()[0];
-                ark_bn254::Fr::new((a.shr(ls_limb as usize) & U256::from(1)).into())
+                ark_bn254::Fr::new(
+                    (a.shr(usize::try_from(ls_limb).unwrap_or(usize::MAX)) & U256::from(1)).into(),
+                )
             }),
         );
         self
     }
 
     /// Loads the Groth16 material from `.zkey` and graph files and verifies their fingerprints if provided.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn build_from_paths(
         self,
         zkey_path: impl AsRef<Path>,
@@ -342,6 +361,10 @@ impl CircomGroth16MaterialBuilder {
     }
 
     /// Builds Groth16 material directly from `.zkey` and graph readers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn build_from_reader(
         self,
         mut zkey_reader: impl std::io::Read,
@@ -355,6 +378,10 @@ impl CircomGroth16MaterialBuilder {
     }
 
     /// Builds Groth16 material directly from in-memory `.zkey` and graph bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn build_from_bytes(
         self,
         zkey_bytes: &[u8],
@@ -390,6 +417,10 @@ impl CircomGroth16MaterialBuilder {
     }
 
     /// Downloads `.zkey` and graph files from the provided URLs and builds the Groth16 material.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     #[cfg(feature = "reqwest")]
     pub async fn build_from_urls(
         self,
@@ -402,6 +433,10 @@ impl CircomGroth16MaterialBuilder {
     }
 
     /// Downloads `.zkey` and graph files from the provided URLs and builds the Groth16 material. Uses the blocking reqwest client.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     #[cfg(feature = "reqwest-blocking")]
     pub fn build_from_urls_blocking(
         self,
@@ -430,6 +465,7 @@ impl CircomGroth16Material {
     ///     .expect("can serialize material");
     /// # let _ = (zkey_bytes, graph_bytes);
     /// ```
+    #[must_use]
     pub fn serializer(&self) -> CircomGroth16MaterialSerializer<'_> {
         CircomGroth16MaterialSerializer {
             material: self,
@@ -437,12 +473,17 @@ impl CircomGroth16Material {
         }
     }
 
-    /// Returns a reference to the underlying [ArkZkey].
+    /// Returns a reference to the underlying [`ArkZkey`].
+    #[must_use]
     pub fn zkey(&self) -> &ArkZkey<Bn254> {
         &self.zkey
     }
 
     /// Computes a witness vector from a circuit graph and inputs.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn generate_witness(
         &self,
         inputs: &impl ProofInput,
@@ -462,6 +503,10 @@ impl CircomGroth16Material {
     /// Generates a Groth16 proof from a witness and verifies it.
     ///
     /// Doesn't verify the proof internally.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn generate_proof_from_witness<R: Rng + CryptoRng>(
         &self,
         witness: &[ark_bn254::Fr],
@@ -481,6 +526,10 @@ impl CircomGroth16Material {
     /// Generates a Groth16 proof from structured inputs.
     ///
     /// This internally computes the witness using the provided inputs and then generates the proof.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn generate_proof<R: Rng + CryptoRng>(
         &self,
         inputs: &impl ProofInput,
@@ -491,6 +540,10 @@ impl CircomGroth16Material {
     }
 
     /// Verifies a Groth16 proof and accompanying public inputs using the verification key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn verify_proof(
         &self,
         proof: &Proof<Bn254>,
@@ -501,8 +554,9 @@ impl CircomGroth16Material {
     }
 }
 
-impl<'a> CircomGroth16MaterialSerializer<'a> {
+impl CircomGroth16MaterialSerializer<'_> {
     /// Sets the compression mode for serializing the `.zkey` bytes.
+    #[must_use]
     pub fn compress(mut self, compress: Compress) -> Self {
         self.compress = compress;
         self
@@ -522,6 +576,10 @@ impl<'a> CircomGroth16MaterialSerializer<'a> {
     ///     .to_bytes()
     ///     .expect("can export bytes");
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn to_bytes(self) -> Result<(Vec<u8>, Vec<u8>), MaterialSerializationError> {
         let mut zkey_bytes = Vec::new();
         let mut graph_bytes = Vec::new();
@@ -530,6 +588,10 @@ impl<'a> CircomGroth16MaterialSerializer<'a> {
     }
 
     /// Serializes and writes the material into `.zkey` and graph writers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn to_writer(
         self,
         mut zkey_writer: impl std::io::Write,
@@ -552,6 +614,10 @@ impl<'a> CircomGroth16MaterialSerializer<'a> {
     }
 
     /// Serializes and writes the material into `.zkey` and graph files.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be read, is truncated, or fails validation.
     pub fn to_paths(
         self,
         zkey_path: impl AsRef<Path>,

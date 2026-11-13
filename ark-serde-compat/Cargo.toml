@@ -30,3 +30,6 @@ babyjubjub = ["dep:ark-babyjubjub"]
 bls12-381 = ["dep:ark-bls12-381"]
 bn254 = ["dep:ark-bn254"]
 full = ["babyjubjub", "bls12-381", "bn254"]
+
+[lints]
+workspace = true
