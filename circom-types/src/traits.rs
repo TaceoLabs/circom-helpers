@@ -121,6 +121,10 @@ macro_rules! impl_serde_for_curve {
                         <Self::ScalarField as PrimeField>::BigInt::deserialize_uncompressed(
                             buf.as_slice(),
                         )?;
+                    // `new_unchecked` does not reduce, so reject non-canonical encodings
+                    if bigint >= <Self::ScalarField as PrimeField>::MODULUS {
+                        return Err(SerializationError::InvalidData);
+                    }
                     Ok(Self::ScalarField::new_unchecked(bigint))
                 }
 
@@ -130,6 +134,10 @@ macro_rules! impl_serde_for_curve {
                     let bigint = <Self::BaseField as PrimeField>::BigInt::deserialize_uncompressed(
                         buf.as_slice(),
                     )?;
+                    // `new_unchecked` does not reduce, so reject non-canonical encodings
+                    if bigint >= <Self::BaseField as PrimeField>::MODULUS {
+                        return Err(SerializationError::InvalidData);
+                    }
                     Ok(Self::BaseField::new_unchecked(bigint))
                 }
 

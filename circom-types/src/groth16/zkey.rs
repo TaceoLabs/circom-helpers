@@ -868,6 +868,26 @@ mod malformed_bn254_tests {
     }
 
     #[test]
+    fn rejects_non_canonical_field_elements() {
+        use ark_ff::{BigInteger, One};
+
+        let mut x = ark_bn254::Fq::one().0;
+        x.add_with_carry(&ark_bn254::Fq::MODULUS);
+        // (1 + p, 2) is the generator with a non-reduced x coordinate
+        let mut g1 = x.to_bytes_le();
+        g1.extend(ark_bn254::Fq::from(2u64).0.to_bytes_le());
+        for check in [CheckElement::Yes, CheckElement::No] {
+            <Bn254 as CircomArkworksPairingBridge>::g1_from_bytes(&g1, check)
+                .expect_err("should fail");
+        }
+
+        let modulus = ark_bn254::Fr::MODULUS.to_bytes_le();
+        Bn254::fr_from_montgomery_reader(modulus.as_slice()).expect_err("should fail");
+        Bn254::fr_from_reader_for_groth16_zkey(modulus.as_slice()).expect_err("should fail");
+        Bn254::fq_from_montgomery_reader(&[0xff; 32][..]).expect_err("should fail");
+    }
+
+    #[test]
     fn rejects_n_public_larger_than_n_vars() {
         parse_patched(|b| {
             let h = section_offset(b, 2);
