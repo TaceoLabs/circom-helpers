@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-algebra-v0.1.1...taceo-ark-algebra-v0.1.2)
+
+### ⚙️ Miscellaneous Tasks
+
+
+- *(clippy)* Enabled prod level clippy lints ([#117](https://github.com/TaceoLabs/circom-helpers/pull/117)) - ([4de9c6d](https://github.com/TaceoLabs/circom-helpers/commit/4de9c6d70eb5ffc9b57663e2642ae4f93e78dd56))
+
+
 ## [0.1.0]
 
 ### ⛰️ Features

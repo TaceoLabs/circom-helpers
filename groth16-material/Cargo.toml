@@ -1,6 +1,6 @@
 [package]
 name = "taceo-groth16-material"
-version = "0.4.4"
+version = "0.4.5"
 edition.workspace = true
 rust-version.workspace = true
 description = "A collection of utilities for generating witnesses and proofs for Groth16 circuits. Supports Circom circuits for now."
@@ -21,10 +21,10 @@ ark-bn254 = { workspace = true }
 ark-ff = { workspace = true }
 ark-groth16 = { workspace = true }
 ark-serialize = { workspace = true, optional = true }
-circom-types = { package = "taceo-circom-types", path = "../circom-types", version = "0.3.4", default-features = false, features = ["bn254", "groth16", "zkey"] }
+circom-types = { package = "taceo-circom-types", path = "../circom-types", version = "0.3.5", default-features = false, features = ["bn254", "groth16", "zkey"] }
 circom-witness-rs = { workspace = true, optional = true }
 eyre = { workspace = true }
-groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.3", default-features = false }
+groth16 = { package = "taceo-groth16", path = "../groth16", version = "0.2.4", default-features = false }
 hex = { workspace = true, optional = true }
 postcard = { workspace = true, optional = true }
 rand = { workspace = true }

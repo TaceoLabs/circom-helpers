@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.6.4](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.6.3...taceo-ark-serde-compat-v0.6.4)
+
+### 🐛 Bug Fixes
+
+
+- *(ark-serde-compat)* Reject non-canonical projective points in JSON - ([af6c873](https://github.com/TaceoLabs/circom-helpers/commit/af6c87378b084e4300430600a51abf87c2844021))
+
+### 📚 Documentation
+
+
+- Explain max_decimal_digits - ([fce873f](https://github.com/TaceoLabs/circom-helpers/commit/fce873f050268d50ab7a16f02fd5cc72495838f4))
+
+### ⚙️ Miscellaneous Tasks
+
+
+- *(clippy)* Enabled prod level clippy lints ([#117](https://github.com/TaceoLabs/circom-helpers/pull/117)) - ([4de9c6d](https://github.com/TaceoLabs/circom-helpers/commit/4de9c6d70eb5ffc9b57663e2642ae4f93e78dd56))
+
+
 ## [0.6.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-ark-serde-compat-v0.6.2...taceo-ark-serde-compat-v0.6.3)
 
 ### 🧪 Testing

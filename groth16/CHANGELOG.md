@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.2.4](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-v0.2.3...taceo-groth16-v0.2.4)
+
+### 📚 Documentation
+
+
+- Explain max_decimal_digits - ([fce873f](https://github.com/TaceoLabs/circom-helpers/commit/fce873f050268d50ab7a16f02fd5cc72495838f4))
+
+### ⚙️ Miscellaneous Tasks
+
+
+- *(clippy)* Enabled prod level clippy lints ([#117](https://github.com/TaceoLabs/circom-helpers/pull/117)) - ([4de9c6d](https://github.com/TaceoLabs/circom-helpers/commit/4de9c6d70eb5ffc9b57663e2642ae4f93e78dd56))
+- *(clippy)* Add semicolon after eyre::bail - ([76f8ca2](https://github.com/TaceoLabs/circom-helpers/commit/76f8ca2d95b1275f534596a96e0f0ee340f76762))
+
+
 ## [0.2.3](https://github.com/TaceoLabs/circom-helpers/compare/taceo-groth16-v0.2.2...taceo-groth16-v0.2.3)
 
 ### 🐛 Bug Fixes

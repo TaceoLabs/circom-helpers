@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.5](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.3.4...taceo-circom-types-v0.3.5)
+
+### 🐛 Bug Fixes
+
+
+- *(circom-types)* Reject non-canonical field elements in zkey - ([178f8c4](https://github.com/TaceoLabs/circom-helpers/commit/178f8c496b360e2696a8ad4e5e2a17d26e160146))
+- *(circom-types)* Reject trailing bytes in R1CS and witness files - ([2bd4b4d](https://github.com/TaceoLabs/circom-helpers/commit/2bd4b4d749385ca5d4db26af4508ae88b98e4792))
+- *(circom-types)* Reject trailing bytes after the last zkey section - ([02804c8](https://github.com/TaceoLabs/circom-helpers/commit/02804c8be6be5898af26f93d6dafcf9b9a06dc95))
+- *(circom-types)* Do not preallocate from the count in G1/G2 vec readers - ([612114a](https://github.com/TaceoLabs/circom-helpers/commit/612114af30f0e63f17308b94fd73ede27725670a))
+- *(circom-types)* Require exact zkey section sizes - ([b7e0f47](https://github.com/TaceoLabs/circom-helpers/commit/b7e0f47ddb6522dfb27fe9c93b8f60c8a8114dea))
+- *(circom-types)* Reject out-of-range signal and wire indices - ([65ee317](https://github.com/TaceoLabs/circom-helpers/commit/65ee3173f4f57dba1d5d1811c68a140400ca2224))
+- *(circom-types)* Validate header counts against section sizes before allocating - ([df7b2d0](https://github.com/TaceoLabs/circom-helpers/commit/df7b2d05d9e5f4b5b651e575d6bafd6d09f4f98f))
+
+### 🧪 Testing
+
+
+- *(circom-types)* Fail fast on oversized allocations in parser tests - ([2bff1a6](https://github.com/TaceoLabs/circom-helpers/commit/2bff1a66b8f2ee1fd1f3259cdc8713f421dfcded))
+
+### ⚙️ Miscellaneous Tasks
+
+
+- *(clippy)* Enabled prod level clippy lints ([#117](https://github.com/TaceoLabs/circom-helpers/pull/117)) - ([4de9c6d](https://github.com/TaceoLabs/circom-helpers/commit/4de9c6d70eb5ffc9b57663e2642ae4f93e78dd56))
+
+
 ## [0.3.4](https://github.com/TaceoLabs/circom-helpers/compare/taceo-circom-types-v0.3.3...taceo-circom-types-v0.3.4)
 
 ### 🐛 Bug Fixes
