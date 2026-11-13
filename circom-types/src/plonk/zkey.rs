@@ -212,7 +212,13 @@ impl<P: Pairing + CircomArkworksPairingBridge> Zkey<P> {
             check_section_len(section.get_ref().len(), 1, poly_len, name)?;
         }
         check_section_len(sigma_sections.len(), 3, sigma_section_size, "sigma")?;
-        check_section_len(l_section.get_ref().len(), n_public, poly_len, "lagrange")?;
+        // snarkjs writes at least one lagrange polynomial
+        check_section_len(
+            l_section.get_ref().len(),
+            n_public.max(1),
+            poly_len,
+            "lagrange",
+        )?;
         let n_taus = domain_size.checked_add(6).ok_or_else(overflow)?;
         check_section_len(
             t_section.get_ref().len(),
