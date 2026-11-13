@@ -84,14 +84,20 @@ impl<F: PrimeField> Witness<F> {
         //don't know if we need them, maybe at least log them later
         let _ = reader.read_u32::<LittleEndian>()?;
         let _ = reader.read_u64::<LittleEndian>()?;
-        Ok(Self {
-            values: (0..n_witness)
-                .map(|_| {
-                    reader_utils::prime_field_from_reader(&mut reader, n8)
-                        .map_err(WitnessParserError::from)
-                })
-                .collect::<Result<Vec<F>>>()?,
-        })
+        let values = (0..n_witness)
+            .map(|_| {
+                reader_utils::prime_field_from_reader(&mut reader, n8)
+                    .map_err(WitnessParserError::from)
+            })
+            .collect::<Result<Vec<F>>>()?;
+        if reader.read(&mut [0u8])? != 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "trailing bytes after witness values",
+            )
+            .into());
+        }
+        Ok(Self { values })
     }
 }
 
@@ -157,6 +163,13 @@ mod malformed_bn254_tests {
     use crate::tests::{groth16_bn254_kats, patch_u32, section_offset};
 
     use super::Witness;
+
+    #[test]
+    fn rejects_trailing_bytes() {
+        let mut bytes = std::fs::read(groth16_bn254_kats().join("witness.wtns")).unwrap();
+        bytes.push(0);
+        Witness::<ark_bn254::Fr>::from_reader(bytes.as_slice()).expect_err("should fail");
+    }
 
     #[test]
     fn rejects_huge_n8() {
