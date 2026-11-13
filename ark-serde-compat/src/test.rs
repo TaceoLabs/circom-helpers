@@ -107,6 +107,57 @@ mod bn254_tests {
     }
 
     #[test]
+    fn test_rejects_non_canonical_projective_points() {
+        use ark_ec::AffineRepr as _;
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+        struct G1(#[serde(with = "bn254::g1")] ark_bn254::G1Affine);
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+        struct G1Unchecked(#[serde(with = "bn254::g1_unchecked")] ark_bn254::G1Affine);
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+        struct G1Seq(#[serde(with = "bn254::g1_seq")] Vec<ark_bn254::G1Affine>);
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+        struct G2(#[serde(with = "bn254::g2")] ark_bn254::G2Affine);
+
+        // the generator (1, 2) with z = 2, and non-canonical encodings of infinity
+        for json in [
+            r#"["4","16","2"]"#,
+            r#"["5","7","0"]"#,
+            r#"["0","0","0"]"#,
+            r#"["0","2","0"]"#,
+        ] {
+            serde_json::from_str::<G1>(json).expect_err("should fail");
+            serde_json::from_str::<G1Unchecked>(json).expect_err("should fail");
+            serde_json::from_str::<G1Seq>(&format!("[{json}]")).expect_err("should fail");
+        }
+        assert_eq!(
+            serde_json::from_str::<G1>(r#"["1","2","1"]"#).expect("canonical"),
+            G1(ark_bn254::G1Affine::generator())
+        );
+        assert_eq!(
+            serde_json::from_str::<G1>(r#"["0","1","0"]"#).expect("canonical"),
+            G1(ark_bn254::G1Affine::identity())
+        );
+
+        let g2 = serde_json::to_value(G2(ark_bn254::G2Affine::generator())).expect("works");
+        let (x, y) = (&g2[0], &g2[1]);
+        for z in [
+            r#"["2","0"]"#,
+            r#"["1","1"]"#,
+            r#"["0","1"]"#,
+            r#"["0","0"]"#,
+        ] {
+            serde_json::from_str::<G2>(&format!("[{x},{y},{z}]")).expect_err("should fail");
+        }
+        for json in [
+            r#"[["0","0"],["0","0"],["0","0"]]"#,
+            r#"[["0","0"],["1","1"],["0","0"]]"#,
+            r#"[["1","0"],["1","0"],["0","0"]]"#,
+        ] {
+            serde_json::from_str::<G2>(json).expect_err("should fail");
+        }
+    }
+
+    #[test]
     fn test_unsigned_malleability() {
         let random_number: BigUint = ark_bn254::Fr::rand(&mut rand::thread_rng())
             .into_bigint()

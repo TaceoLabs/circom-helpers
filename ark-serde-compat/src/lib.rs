@@ -8,9 +8,9 @@ use std::str::FromStr;
 use std::{fmt, marker::PhantomData};
 
 use ark_ec::{
-    AffineRepr, CurveGroup,
+    AffineRepr,
     pairing::Pairing,
-    short_weierstrass::{Affine, Projective, SWCurveConfig},
+    short_weierstrass::{Affine, SWCurveConfig},
 };
 use ark_ff::{
     CubicExtConfig, CubicExtField, Field, Fp12Config, Fp12ConfigWrapper, One, PrimeField,
@@ -981,8 +981,9 @@ where
 
 /// Parses a G1 affine point from projective coordinate strings.
 ///
+/// Only the canonical encodings are accepted: `z` must be `1`, or the point must be the point at
+/// infinity `(0, 1, 0)`. Other projective representations of the same point are rejected.
 /// If `CHECK` is true, validates the point is on the curve and in the correct subgroup.
-/// Always accepts the point at infinity without validation.
 fn g1_from_strings_projective<const CHECK: bool, F, G1>(
     x: &str,
     y: &str,
@@ -992,13 +993,16 @@ where
     F: PrimeField,
     G1: SWCurveConfig<BaseField = F>,
 {
-    let x = parse_field_str_inner_unsigned(x)?;
-    let y = parse_field_str_inner_unsigned(y)?;
-    let z = parse_field_str_inner_unsigned(z)?;
-    let p = Projective::<G1>::new_unchecked(x, y, z).into_affine();
-    if p.is_zero() {
-        return Ok(p);
+    let x: F = parse_field_str_inner_unsigned(x)?;
+    let y: F = parse_field_str_inner_unsigned(y)?;
+    let z: F = parse_field_str_inner_unsigned(z)?;
+    if z.is_zero() && x.is_zero() && y.is_one() {
+        return Ok(Affine::identity());
     }
+    if !z.is_one() {
+        return Err(SerdeCompatError("non-canonical projective point"));
+    }
+    let p = Affine::<G1>::new_unchecked(x, y);
     if CHECK && !p.is_on_curve() {
         return Err(SerdeCompatError("not con curve"));
     }
@@ -1011,8 +1015,9 @@ where
 /// Parses a G2 affine point from projective coordinate strings.
 ///
 /// Takes six strings representing the components of three Fq2 coordinates (x, y, z).
+/// Only the canonical encodings are accepted: `z` must be `(1, 0)`, or the point must be the point
+/// at infinity `((0, 0), (1, 0), (0, 0))`. Other projective representations are rejected.
 /// If `CHECK` is true, validates the point is on the curve and in the correct subgroup.
-/// Always accepts the point at infinity without validation.
 fn g2_from_strings_projective<const CHECK: bool, F, Q, G2>(
     x0: &str,
     x1: &str,
@@ -1036,10 +1041,13 @@ where
     let x = QuadExtField::<Q>::new(x0, x1);
     let y = QuadExtField::<Q>::new(y0, y1);
     let z = QuadExtField::<Q>::new(z0, z1);
-    let p = Projective::<G2>::new_unchecked(x, y, z).into_affine();
-    if p.is_zero() {
-        return Ok(p);
+    if z.is_zero() && x.is_zero() && y.is_one() {
+        return Ok(Affine::identity());
     }
+    if !z.is_one() {
+        return Err(SerdeCompatError("non-canonical projective point"));
+    }
+    let p = Affine::<G2>::new_unchecked(x, y);
     if CHECK && !p.is_on_curve() {
         return Err(SerdeCompatError("not on curve"));
     }
