@@ -603,8 +603,8 @@ impl CircomGroth16MaterialSerializer<'_> {
             .map_err(MaterialSerializationError::ZkeySerialization)?;
         postcard::to_io(
             &(
-                &self.material.graph.nodes,
-                &self.material.graph.signals,
+                &self.material.graph.nodes(),
+                &self.material.graph.signals(),
                 &self.material.graph.input_mapping,
             ),
             &mut graph_writer,
